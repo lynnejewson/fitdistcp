@@ -4,7 +4,7 @@ import json
 import os
 
 
-file_name = "reltest GPD 0.txt"
+file_name = "reltest GPD 3.txt"
 file_path = os.getcwd() + '\\reltest output\\' + file_name
 with open(file_path, 'r') as f:
     result = json.load(f)

@@ -60,8 +60,8 @@ def qgpd_k1_cp(x, p=None, kloc=0, ics=None, fdalpha=0.01, customprior=0,
     ics = cp_gpd_b.gpd_k1_setics(x, ics)
     opt1 = optimize.minimize(lambda params: -cp_gpd_b.gpd_k1_loglik(params, x, kloc), 
                            ics, method='BFGS')
-    v1hat = opt1.x[0]
-    v2hat = opt1.x[1]
+    v1hat = opt1.x[0]   # sigma
+    v2hat = opt1.x[1]   # xi
     ml_params = np.array([v1hat, v2hat])
     
     # gpd_k1_checkmle(ml_params,kloc,minxi,maxxi)
@@ -78,15 +78,14 @@ def qgpd_k1_cp(x, p=None, kloc=0, ics=None, fdalpha=0.01, customprior=0,
     maic = cp_utils.make_maic(ml_value, nparams=2)
     
     # 4 calc ml quantiles and densities (vectorized over alpha)
-    c = -v2hat  # =-xi for scipy parameterization
-    ml_quantiles = stats.genpareto.ppf(1 - alpha, c, loc=kloc, scale=v1hat)
+    ml_quantiles = stats.genpareto.ppf(1 - alpha, v2hat, loc=kloc, scale=v1hat)
     
     if v2hat < 0:
         ml_max = kloc - v1hat / v2hat
     else:
         ml_max = np.inf
     
-    fhat = stats.genpareto.pdf(ml_quantiles, c, loc=kloc, scale=v1hat)
+    fhat = stats.genpareto.pdf(ml_quantiles, v2hat, loc=kloc, scale=v1hat)
     
     # dmgs
     standard_errors = "dmgs not selected"
@@ -109,11 +108,11 @@ def qgpd_k1_cp(x, p=None, kloc=0, ics=None, fdalpha=0.01, customprior=0,
     if dmgs and not revert2ml:
         # 5 alpha pdf stuff
         if pdf:
-            c = -v2hat
-            ml_quantilesm = stats.genpareto.ppf(1 - alpham, c, loc=kloc, scale=v1hat)
-            ml_quantilesp = stats.genpareto.ppf(1 - alphap, c, loc=kloc, scale=v1hat)
-            fhatm = stats.genpareto.pdf(ml_quantilesm, c, loc=kloc, scale=v1hat)
-            fhatp = stats.genpareto.pdf(ml_quantilesp, c, loc=kloc, scale=v1hat)
+            xi = v2hat  # xi = c here
+            ml_quantilesm = stats.genpareto.ppf(1 - alpham, xi, loc=kloc, scale=v1hat)
+            ml_quantilesp = stats.genpareto.ppf(1 - alphap, xi, loc=kloc, scale=v1hat)
+            fhatm = stats.genpareto.pdf(ml_quantilesm, xi, loc=kloc, scale=v1hat)
+            fhatp = stats.genpareto.pdf(ml_quantilesp, xi, loc=kloc, scale=v1hat)
         
         if debug:
             print(f"ml_quantiles={ml_quantiles}")

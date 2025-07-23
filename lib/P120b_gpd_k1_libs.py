@@ -55,9 +55,10 @@ def gpd_k1_logf(params, x, kloc):
 def gpd_k1_setics(x, ics):
     """Set initial conditions"""
     if (ics[0] == 0) and (ics[1] == 0):
-        ics[0] = np.std(x, ddof=1)
-        ics[1] = 0
-    return ics
+        ics_new = [np.std(x, ddof=1), 0]
+    else:
+        ics_new = ics
+    return ics_new
 
 
 def gpd_k1_loglik(vv, x, kloc):

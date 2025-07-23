@@ -12,7 +12,9 @@ sys.path.append(os.getcwd() + '\\lib')
 import P120a_gpd_k1 as cp_gpd_a
 import P120b_gpd_k1_libs as cp_gpd_b
 
+
 warnings.filterwarnings("ignore", category=RuntimeWarning)
+
 
 
 def reliability_test(desired_p, ntrials, nx):
@@ -46,18 +48,36 @@ def reliability_test(desired_p, ntrials, nx):
     return {'actual_p_ml' : p_actual_ml_avg, 'actual_p_cp': p_actual_cp_avg}
 
 
-ntrials = 1000
-nx = 40
-p = 0.0001 *np.asarray( range(1, 10000))
-result = reliability_test(p, ntrials, nx)
-result['actual_p_ml'] = np.ndarray.tolist(result['actual_p_ml'])
-result['actual_p_cp'] = np.ndarray.tolist(result['actual_p_cp'])
-result['p'] = np.ndarray.tolist(p)
+def carry_out_reltest():
+    ntrials = 100
+    nx = 40
+    p = 0.0001 *np.asarray( range(1, 10000))
+    result = reliability_test(p, ntrials, nx)
+    result['actual_p_ml'] = np.ndarray.tolist(result['actual_p_ml'])
+    result['actual_p_cp'] = np.ndarray.tolist(result['actual_p_cp'])
+    result['p'] = np.ndarray.tolist(p)
+    file_name = "reltest GPD 4.txt"
+    file_path = os.getcwd() + '\\reltest output\\' + file_name
+    with open(file_path, 'w') as f:
+        json.dump(result, f)
 
-file_name = "reltest GPD 1.txt"
-file_path = os.getcwd() + '\\reltest output\\' + file_name
-with open(file_path, 'w') as f:
-    json.dump(result, f)
 
+def regular_test():
+    x = genpareto.rvs(0, loc=0, scale=1, size=20)
 
-#pprint.pprint(q, width=160)
+    x_example_1 = [
+        0.91794411, 0.29501841, 5.22681723, 0.44249577, 0.38225736, 1.65562589,
+        0.33388235, 0.29924417, 0.20876138, 4.18325104, 2.22945457, 1.45345549,
+        0.31319118, 0.01162536, 0.13348783, 0.38851889, 0.32642607, 0.72000737,
+        1.06938394, 2.52318835
+    ]
+    x_example_2 = [
+        0.20572726, 1.86384593, 0.48910372, 1.43486757, 1.159838, 0.15611357,
+        0.94287216, 0.03497607, 0.5713605,  1.1172626,  0.6266541,  1.23199102, 0.96530044,
+        2.0140288,  0.37606083, 0.62832804, 1.07610164, 1.15995558, 0.10547796, 0.65184389
+    ]
+
+    q = cp_gpd_a.qgpd_k1_cp(x_example_1)
+    pprint.pprint(q)
+
+carry_out_reltest()
