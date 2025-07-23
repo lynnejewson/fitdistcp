@@ -296,5 +296,5 @@ def gev_p1_ldda(x,t,v1,v2,v3,v4):
 def gev_p1_lddda(x,t,v1,v2,v3,v4):
 	v4=cp_utils.movexiawayfromzero(v4)
 	temp1=gev_p1_logfddd(x,t,v1,v2,v3,v4)
-	lddd=np.sum(temp1,axis=-2)/len(x)
+	lddd=np.sum(temp1,axis=-1)/len(x)
 	return(lddd)

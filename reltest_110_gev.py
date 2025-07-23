@@ -6,6 +6,10 @@ from scipy.optimize import minimize
 import json
 import warnings
 
+import sys
+import os
+sys.path.append(os.getcwd() + '\\lib')
+
 import P110a_gev as cp_gev_a
 import P110b_gev_libs as cp_gev_b
 
@@ -87,14 +91,14 @@ def reliability_test(desired_p, ntrials, nx):
     return {'actual_p_ml' : p_actual_ml_avg, 'actual_p_cp': p_actual_cp_avg}
 
 
-ntrials = 100
+ntrials = 10
 nx = 40
 p = 0.0001 *np.asarray( range(1, 10000))
 result = reliability_test(p, ntrials, nx)
 result['actual_p_ml'] = np.ndarray.tolist(result['actual_p_ml'])
 result['actual_p_cp'] = np.ndarray.tolist(result['actual_p_cp'])
 result['p'] = np.ndarray.tolist(p)
-with open('test resltest nx=40, ntrials=1000, p=[0.0001, ..., 0.9999] step=0.0001.txt', 'w') as f:
+with open('reltest output/reltest GEV 5.txt', 'w') as f:
     json.dump(result, f)
 
 

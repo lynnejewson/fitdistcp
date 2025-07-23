@@ -6,6 +6,7 @@ import P005_utils as cp_utils
 import P000_evaluate_dmgs_equation3p3 as cp_dmgs
 import P150b_gev_p1_libs as cp_gev_p1_b
 import P150c_gev_p1_derivs as cp_gev_p1_c
+import warnings
 
 def qgev_p1_cp(x, t, t0=None, n0=None, p=np.arange(0.1, 1.0, 0.1), ics=np.array([0,0,0,0]),
                fdalpha=0.01, minxi=-1, maxxi=1, means=False, waicscores=False, extramodels=False,
@@ -49,6 +50,8 @@ def qgev_p1_cp(x, t, t0=None, n0=None, p=np.arange(0.1, 1.0, 0.1), ics=np.array(
         return -cp_gev_p1_b.gev_p1_loglik(params, x, t)
     
     opt1 = minimize(neg_loglik, ics, method='BFGS')
+    if not opt1.success:
+        warnings.warn('scipy.optimize.minimize fails due to precision loss.')
     v1hat = opt1.x[0]
     v2hat = opt1.x[1] 
     v3hat = opt1.x[2]

@@ -1,10 +1,13 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import json
+import os
 
-with open('reltest GPD 0.txt', 'r') as f:
+
+file_name = "reltest GPD 0.txt"
+file_path = os.getcwd() + '\\reltest output\\' + file_name
+with open(file_path, 'r') as f:
     result = json.load(f)
-
 
 
 actual_p_ml = result['actual_p_ml']
@@ -99,7 +102,7 @@ def single_plot(data, ax):
     ax.set_xlabel(data['xlabel'])
     ax.set_ylabel(data['ylabel'])
     ax.set_title(data['title'])
-    # ax.legend() # crowds the graphs somewhat   
+    ax.legend() # crowds the graphs somewhat   
 
 
 data = [format_data_a(), format_data_b(), format_data_d(), format_data_h(), format_data_i()]
