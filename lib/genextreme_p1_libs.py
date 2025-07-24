@@ -4,7 +4,7 @@ from scipy.optimize import minimize
 from scipy.special import gamma, digamma, polygamma
 import sys
 import P005_utils as cp_utils
-import P150c_gev_p1_derivs as cp_gev_p1_c
+import genextreme_p1_derivs as cp_gev_p1_c
 
 def rgev_p1_minmax(nx, mu, sigma, xi, tt, minxi=-0.45, maxxi=0.45, centering=True):
     """rgev for gev_p1 but with maxlik xi within bounds"""

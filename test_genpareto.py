@@ -10,8 +10,8 @@ import sys
 import os
 sys.path.append(os.getcwd() + '\\lib')
 
-import P120a_gpd_k1 as cp_gpd_a
-import P120b_gpd_k1_libs as cp_gpd_b
+import genpareto as cp_gpd_a
+import genpareto_libs as cp_gpd_b
 import tests_lib
 
 
@@ -22,7 +22,7 @@ warnings.filterwarnings("ignore", category=RuntimeWarning)
 def pdf_comparison():
     x = genpareto.rvs(0.3, loc=0, scale=1, size=20)
     p = 0.0005*np.asarray(range(1,2000))
-    q = cp_gpd_a.qgpd_k1_cp(x, p, pdf=True)
+    q = cp_gpd_a.ppf(x, p, pdf=True)
     print(q)
     sigma, xi = q['ml_params']
     actual_p = genpareto.pdf(q['cp_quantiles'], 0.3, loc=0, scale=1)
@@ -33,7 +33,7 @@ def pdf_comparison():
 def cdf_comparison(edf=False):
     x = genpareto.rvs(0.3, loc=5, scale=1, size=50)
     p = 0.0005*np.asarray(range(1,2000))
-    q = cp_gpd_a.qgpd_k1_cp(x, p)
+    q = cp_gpd_a.ppf(x, p)
     sigma, xi = q['ml_params']
     tests_lib.cdf_comparison(q, p, title=f'cp, ml GPD comparison;  $\\xi={xi:.3f}$')
 
@@ -57,7 +57,7 @@ def reliability_test(desired_p, ntrials, nx):
         q_ml = genpareto.ppf(desired_p, -xi_ml, loc=kloc, scale=sigma_ml)
 
         # CP:
-        q_cp = cp_gpd_a.qgpd_k1_cp(x, desired_p)['cp_quantiles']
+        q_cp = cp_gpd_a.ppf(x, desired_p)['cp_quantiles']
 
         # feed back in for the actual probability
         p_actual_ml_total += genpareto.cdf(q_ml, -xi, loc=kloc, scale=sigma)

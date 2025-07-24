@@ -6,7 +6,7 @@ import sys
 import os
 sys.path.append(os.getcwd() + '\\lib')
 
-import P150a_gev_p1 as cp_gev_p1_a
+import genextreme_p1 as cp_gev_p1_a
 
 
 x = []
@@ -47,5 +47,5 @@ x = x_example_3
 t = t_example_3
 t0 = max(t)
 
-q = cp_gev_p1_a.qgev_p1_cp(x, t, t0=t0)
+q = cp_gev_p1_a.ppf(x, t, t0=t0)
 pprint.pprint(q['ml_quantiles'])

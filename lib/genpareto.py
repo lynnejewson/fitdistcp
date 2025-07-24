@@ -2,16 +2,14 @@
 import numpy as np
 import scipy.stats as stats
 import scipy.optimize as optimize
-import warnings
-import sys
 
 import P005_utils as cp_utils
 import P000_evaluate_dmgs_equation3p3 as cp_dmgs
-import P120c_gpd_k1_derivs as cp_gpd_c
-import P120b_gpd_k1_libs as cp_gpd_b
+import genpareto_derivs as cp_gpd_c
+import genpareto_libs as cp_gpd_b
 
 
-def qgpd_k1_cp(x, p=None, kloc=0, ics=None, fdalpha=0.01, customprior=0,
+def ppf(x, p=None, kloc=0, ics=None, fdalpha=0.01, customprior=0,
                minxi=-1, maxxi=2.0, means=False, waicscores=False, extramodels=False,
                pdf=False, dmgs=True, rust=False, nrust=100000, debug=False):
     """
@@ -236,7 +234,7 @@ def qgpd_k1_cp(x, p=None, kloc=0, ics=None, fdalpha=0.01, customprior=0,
         # 21 rust
         ru_quantiles = "rust not selected"
         if rust:
-            rustsim = rgpd_k1_cp(nrust, x, kloc=kloc, rust=True, mlcp=False)
+            rustsim = rvs(nrust, x, kloc=kloc, rust=True, mlcp=False)
             ru_quantiles = cp_utils.makeq(rustsim['ru_deviates'], p)
     
     else:
@@ -274,7 +272,7 @@ def qgpd_k1_cp(x, p=None, kloc=0, ics=None, fdalpha=0.01, customprior=0,
     }
 
 
-def rgpd_k1_cp(n, x, kloc=0, ics=None, minxi=-1, maxxi=2.0,
+def rvs(n, x, kloc=0, ics=None, minxi=-1, maxxi=2.0,
                extramodels=False, rust=False, mlcp=True, debug=False):
     """
     Passed data from the Generalized Pareto Distribution, generate random samples from the GPD with calibrating prior.
@@ -316,8 +314,7 @@ def rgpd_k1_cp(n, x, kloc=0, ics=None, minxi=-1, maxxi=2.0,
     cp_deviates = "rust not selected"
     
     if mlcp:
-        q = qgpd_k1_cp(x, np.random.uniform(0, 1, n), kloc=kloc, ics=ics,
-                      extramodels=extramodels)
+        q = ppf(x, np.random.uniform(0, 1, n), kloc=kloc, ics=ics, extramodels=extramodels)
         ml_params = q['ml_params']
         ml_deviates = q['ml_quantiles']
         ru_deviates = q['ru_quantiles']
@@ -341,7 +338,7 @@ def rgpd_k1_cp(n, x, kloc=0, ics=None, minxi=-1, maxxi=2.0,
     return op
 
 
-def dgpd_k1_cp(x, y=None, kloc=0, ics=None, customprior=0,
+def pdf(x, y=None, kloc=0, ics=None, customprior=0,
                minxi=-1, maxxi=2.0, extramodels=False,
                rust=False, nrust=1000, debug=False):
     """
@@ -419,7 +416,7 @@ def dgpd_k1_cp(x, y=None, kloc=0, ics=None, customprior=0,
     return op
 
 
-def pgpd_k1_cp(x, y=None, kloc=0, ics=None, customprior=0,
+def cdf(x, y=None, kloc=0, ics=None, customprior=0,
                minxi=-1, maxxi=2.0, extramodels=False,
                rust=False, nrust=1000, debug=False):
     """

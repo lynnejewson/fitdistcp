@@ -6,7 +6,7 @@ from scipy.stats import genextreme
 import warnings
 
 import P005_utils as cp_utils
-import P110c_gev_derivs as cp_gev_c
+import genextreme_derivs as cp_gev_c
 
 
 def rgev_minmax(nx, mu, sigma, xi, minxi=-1, maxxi=1):

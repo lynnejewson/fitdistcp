@@ -1,14 +1,13 @@
-
 import numpy as np
 from scipy.optimize import minimize
 from scipy import stats
 import P005_utils as cp_utils
 import P000_evaluate_dmgs_equation3p3 as cp_dmgs
-import P150b_gev_p1_libs as cp_gev_p1_b
-import P150c_gev_p1_derivs as cp_gev_p1_c
+import genextreme_p1_libs as cp_gev_p1_b
+import genextreme_p1_derivs as cp_gev_p1_c
 import warnings
 
-def qgev_p1_cp(x, t, t0=None, n0=None, p=np.arange(0.1, 1.0, 0.1), ics=np.array([0,0,0,0]),
+def ppf(x, t, t0=None, n0=None, p=np.arange(0.1, 1.0, 0.1), ics=np.array([0,0,0,0]),
                fdalpha=0.01, minxi=-1, maxxi=1, means=False, waicscores=False, extramodels=False,
                pdf=False, dmgs=True, rust=False, nrust=100000, predictordata=True,
                centering=True, debug=False):
@@ -233,7 +232,7 @@ def qgev_p1_cp(x, t, t0=None, n0=None, p=np.arange(0.1, 1.0, 0.1), ics=np.array(
         # 20 rust
         ru_quantiles = "rust not selected"
         if rust:
-            rustsim = rgev_p1_cp(nrust, x, t=t, t0=t0, rust=True, mlcp=False)
+            rustsim = rvs(nrust, x, t=t, t0=t0, rust=True, mlcp=False)
             ru_quantiles = cp_utils.makeq(rustsim['ru_deviates'], p)
     else:
         rh_flat_quantiles = ml_quantiles
@@ -268,7 +267,7 @@ def qgev_p1_cp(x, t, t0=None, n0=None, p=np.arange(0.1, 1.0, 0.1), ics=np.array(
         'cp_method': cp_utils.crhpflat_dmgs_cpmethod()
     }
 
-def rgev_p1_cp(n, x, t, t0=None, n0=None, ics=np.array([0,0,0,0]),
+def rvs(n, x, t, t0=None, n0=None, ics=np.array([0,0,0,0]),
                minxi=-1, maxxi=1, extramodels=False, rust=False, mlcp=True, debug=False):
     """
     Random generation for GEV distribution with predictor and calibrating prior.
@@ -323,7 +322,7 @@ def rgev_p1_cp(n, x, t, t0=None, n0=None, ics=np.array([0,0,0,0]),
     cp_deviates = "rust not selected"
 
     if mlcp:
-        q = qgev_p1_cp(x, t=t, t0=t0, n0=None, p=np.random.uniform(0, 1, n), ics=ics, extramodels=extramodels)
+        q = ppf(x, t=t, t0=t0, n0=None, p=np.random.uniform(0, 1, n), ics=ics, extramodels=extramodels)
         ml_params = q['ml_params']
         ml_deviates = q['ml_quantiles']
         ru_deviates = q['ru_quantiles']
@@ -350,7 +349,7 @@ def rgev_p1_cp(n, x, t, t0=None, n0=None, ics=np.array([0,0,0,0]),
 
     return op
 
-def dgev_p1_cp(x, t, t0=None, n0=None, y=None, ics=np.array([0,0,0,0]),
+def pdf(x, t, t0=None, n0=None, y=None, ics=np.array([0,0,0,0]),
                minxi=-1, maxxi=1, extramodels=False,
                rust=False, nrust=1000, centering=True, debug=False):
     """
@@ -453,7 +452,7 @@ def dgev_p1_cp(x, t, t0=None, n0=None, y=None, ics=np.array([0,0,0,0]),
 
     return op
 
-def pgev_p1_cp(x, t, t0=None, n0=None, y=None, ics=np.array([0,0,0,0]),
+def cdf(x, t, t0=None, n0=None, y=None, ics=np.array([0,0,0,0]),
                minxi=-1, maxxi=1, extramodels=False,
                rust=False, nrust=1000, centering=True, debug=False):
     """

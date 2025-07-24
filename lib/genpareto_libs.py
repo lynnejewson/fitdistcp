@@ -5,7 +5,7 @@ import warnings
 import sys
 
 import P005_utils as cp_utils
-import P120c_gpd_k1_derivs as cp_gpd_k1_c
+import genpareto_derivs as cp_gpd_k1_c
 
 
 def rgpd_k1_minmax(nx, kloc, sigma, xi, minxi=-0.45, maxxi=0.45):

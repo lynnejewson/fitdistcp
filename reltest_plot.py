@@ -4,16 +4,17 @@ import json
 import os
 
 
+# After running a reltest to file, import reltest data, and plot various graphs demonstrating the ML vs CP results.
 file_name = "reltest GPD 3.txt"
+
+
+# import and unpack data
 file_path = os.getcwd() + '\\reltest output\\' + file_name
 with open(file_path, 'r') as f:
     result = json.load(f)
-
-
 actual_p_ml = result['actual_p_ml']
 actual_p_cp = result['actual_p_cp']
-p = result['p']
-# p[i]=0.0001*i
+p = result['p']                     # p[i]=0.0001*i
 
 
 def format_data_a():
@@ -102,9 +103,10 @@ def single_plot(data, ax):
     ax.set_xlabel(data['xlabel'])
     ax.set_ylabel(data['ylabel'])
     ax.set_title(data['title'])
-    ax.legend() # crowds the graphs somewhat   
+    ax.legend()                         # crowds the graphs somewhat   
 
 
+# choose
 data = [format_data_a(), format_data_b(), format_data_d(), format_data_h(), format_data_i()]
 fig, axs = plt.subplots(3,2)
 single_plot(data[0], axs[0,0])

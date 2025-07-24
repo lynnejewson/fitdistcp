@@ -5,11 +5,11 @@ from typing import Union, List, Dict, Any, Optional
 
 import P000_evaluate_dmgs_equation3p3 as cp_dmgs
 import P005_utils as cp_utils
-import P110b_gev_libs as cp_gev_b
-import P110c_gev_derivs as cp_gev_c
+import genextreme_libs as cp_gev_b
+import genextreme_derivs as cp_gev_c
 
 
-def qgev_cp(x: Union[np.ndarray, List, float], 
+def ppf(x: Union[np.ndarray, List, float], 
            p: Optional[Union[np.ndarray, List]] = np.arange(0.1, 1.0, 0.1),
            ics: Optional[List[float]] =  [0, 0, 0],
            fdalpha: float = 0.01,
@@ -214,7 +214,7 @@ def qgev_cp(x: Union[np.ndarray, List, float],
         # 19 rust
         ru_quantiles = "rust not selected"
         if rust:
-            rustsim = rgev_cp(nrust, x, rust=True, mlcp=False)
+            rustsim = rvs(nrust, x, rust=True, mlcp=False)
             ru_quantiles = cp_gev_b.makeq(rustsim['ru_deviates'], p)
         
         # end of if(dmgs)
@@ -251,7 +251,7 @@ def qgev_cp(x: Union[np.ndarray, List, float],
     }
 
 
-def rgev_cp(n: int, x: Union[np.ndarray, List, float], 
+def rvs(n: int, x: Union[np.ndarray, List, float], 
            ics: Optional[List[float]] = [0, 0, 0],
            extramodels: bool = False,
            mlcp: bool = True,
@@ -295,7 +295,7 @@ def rgev_cp(n: int, x: Union[np.ndarray, List, float],
     ru_deviates = "rust not selected"
     
     if mlcp:
-        q = qgev_cp(x, np.random.uniform(0, 1, n), ics=ics, extramodels=extramodels)
+        q = ppf(x, np.random.uniform(0, 1, n), ics=ics, extramodels=extramodels)
         ml_params = q['ml_params']
         ml_deviates = q['ml_quantiles']
         ru_deviates = q['ru_quantiles']
@@ -316,7 +316,7 @@ def rgev_cp(n: int, x: Union[np.ndarray, List, float],
     }
 
 
-def dgev_cp(x: Union[np.ndarray, List, float], 
+def pdf(x: Union[np.ndarray, List, float], 
            y: Optional[Union[np.ndarray, List, float]] = None,
            ics: Optional[List[float]] = [0, 0, 0],
            extramodels: bool = False,
@@ -388,7 +388,7 @@ def dgev_cp(x: Union[np.ndarray, List, float],
     }
 
 
-def pgev_cp(x: Union[np.ndarray, List, float], 
+def cdf(x: Union[np.ndarray, List, float], 
            y: Optional[Union[np.ndarray, List, float]] = None,
            ics: Optional[List[float]] = [0, 0, 0],
            extramodels: bool = False,

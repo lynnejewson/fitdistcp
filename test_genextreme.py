@@ -10,8 +10,8 @@ import sys
 import os
 sys.path.append(os.getcwd() + '\\lib')
 
-import P110a_gev as cp_gev_a
-import P110b_gev_libs as cp_gev_b
+import genextreme as cp_gev_a
+import genextreme_libs as cp_gev_b
 import tests_lib
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -21,7 +21,7 @@ warnings.filterwarnings("ignore", category=RuntimeWarning)
 def pdf_comparison():
     x = genextreme.rvs(0.3, loc=5, scale=1, size=50)
     p = 0.0005*np.asarray(range(1,2000))
-    q = cp_gev_a.qgev_cp(x, p, pdf=True)
+    q = cp_gev_a.ppf(x, p, pdf=True)
     mu, sigma, xi = q['ml_params']
     tests_lib.pdf_comparison(q, title=f'cp, ml gev comparison;  $\\xi={xi:.3f}$')
 
@@ -30,7 +30,7 @@ def pdf_comparison():
 def cdf_comparison(edf=False):
     x = genextreme.rvs(0.3, loc=5, scale=1, size=50)
     p = 0.0005*np.asarray(range(1,2000))
-    q = cp_gev_a.qgev_cp(x, p)
+    q = cp_gev_a.ppf(x, p)
     mu, sigma, xi = q['ml_params']
     tests_lib.cdf_comparison(q, p, title=f'cp, ml gev comparison;  $\\xi={xi:.3f}$')
 
@@ -54,7 +54,7 @@ def reliability_test(desired_p, ntrials, nx):
         q_ml = genextreme.ppf(desired_p, -xi_ml, loc=mu_ml, scale=sigma_ml) 
 
         # CP:
-        q_cp = cp_gev_a.qgev_cp(x, desired_p)['cp_quantiles']   
+        q_cp = cp_gev_a.ppf(x, desired_p)['cp_quantiles']   
 
         # feed back in for the actual probability
         p_actual_ml_total += genextreme.cdf(q_ml, -xi, loc=mu, scale=sigma)
