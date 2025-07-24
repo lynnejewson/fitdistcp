@@ -21,8 +21,8 @@ def qgev_cp(x: Union[np.ndarray, List, float],
            dmgs: bool = True,
            debug: bool = False) -> Dict[str, Any]:
     """
-    Generalized Extreme Value Distribution, Predictions based on a Calibrating Prior. The calibrating prior we use is given by
-    π(μ,σ,ξ) ∝ 1/σ as given in Jewson et al. (2025).
+    Passed data from the Generalized Extreme Value Distribution, returns quantiles and other results based on a Calibrating Prior.
+    The calibrating prior we use is given by π(μ,σ,ξ) ∝ 1/σ as given in Jewson et al. (2025).
 
     Parameters
     ----------
@@ -257,7 +257,7 @@ def rgev_cp(n: int, x: Union[np.ndarray, List, float],
            mlcp: bool = True,
            debug: bool = False) -> Dict[str, Any]:
     """
-    Generate random samples from the GEV distribution with calibrating prior.
+    Passed data from the Generalized Extreme Value Distribution, generate random samples from the same distribution with calibrating prior.
 
     Parameters
     ----------
@@ -322,7 +322,7 @@ def dgev_cp(x: Union[np.ndarray, List, float],
            extramodels: bool = False,
            debug: bool = False) -> Dict[str, Any]:
     """
-    Compute the density function for the GEV distribution with calibrating prior.
+    Passed data from the Generalized Extreme Value Distribution, compute the density function for the GEV distribution with calibrating prior.
 
     Parameters
     ----------
@@ -394,7 +394,7 @@ def pgev_cp(x: Union[np.ndarray, List, float],
            extramodels: bool = False,
            debug: bool = False) -> Dict[str, Any]:
     """
-    Compute the cumulative distribution function for the GEV distribution with calibrating prior.
+    Passed data from the Generalized Extreme Value Distribution, compute the cumulative distribution function for the GEV distribution with calibrating prior.
 
     Parameters
     ----------

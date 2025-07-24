@@ -1,18 +1,18 @@
 # fitdistcp
 
-fitdistcp is a free Python package for fitting statistical models using calibrating priors, with the goal of making reliable predictions. It is an alternative to packages such as scipy.stats.genextreme, which use the maximum likelihood method, and underestimate predictive tail probabilities. The functions provided for each distribution (GEV, GEV with 1 parameter, and GPD) accept sample data x as a parameter and return a dict of the relevant results.
+fitdistcp is a free Python package for fitting statistical models using calibrating priors, with the goal of making reliable predictions. The functions provided for each distribution (GEV, GEV with 1 parameter, and GPD) accept sample data x as a parameter and return a dict of the relevant results, such as quantiles, cdf, pdf, and maximum likelihood parameters.
 
-Fitdistcp is based on the results from *Reducing Reliability Bias in Assessments of Extreme Weather Risk using Calibrating Priors*, S. Jewson, T. Sweeting and L. Jewson (2024): https://doi.org/10.5194/ascmo-11-1-2025.
+fitdistcp implements the method developed in *Reducing Reliability Bias in Assessments of Extreme Weather Risk using Calibrating Priors*, S. Jewson, T. Sweeting and L. Jewson (2024): https://doi.org/10.5194/ascmo-11-1-2025.
 
 More information and examples are available at https://www.fitdistcp.info/index.html, including the equivalent (more comprehensive) R package.
 
 
-## Tests
-- The cdf and pdf can be estimated for a set of data, using both the ML and CP method, and plotted.
+### Tests
+- The cdf and pdf can be estimated for a set of data, using the ML or CP method, and plotted.
 - Reliability tests are provided. A reliability test involves generating a sample from a known distribution, and calculating the quantiles using the ML, or CP method. The actual quantiles can be plotted against the estimated quantiles, in various different ways, to judge the reliability of the method.
 
 
-## Example: Fitting a GEV distribution
+### Example: Fitting a GEV distribution
 ```python
 import fitdistcp
 import numpy as np

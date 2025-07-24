@@ -14,7 +14,8 @@ import P120b_gpd_k1_libs as cp_gpd_b
 def qgpd_k1_cp(x, p=None, kloc=0, ics=None, fdalpha=0.01, customprior=0,
                minxi=-1, maxxi=2.0, means=False, waicscores=False, extramodels=False,
                pdf=False, dmgs=True, rust=False, nrust=100000, debug=False):
-    """Generalized Pareto Distribution with Known Location Parameter, Predictions Based on a Calibrating Prior
+    """
+    Passed data from the Generalized Pareto Distribution with known location parameter, returns quantiles and other results.
     
     The GP distribution has exceedcance distribution function
     S(x;μ,σ,ξ) = [1+ξ(x-μ)/σ]^(-1/ξ) if ξ ≠ 0
@@ -276,7 +277,7 @@ def qgpd_k1_cp(x, p=None, kloc=0, ics=None, fdalpha=0.01, customprior=0,
 def rgpd_k1_cp(n, x, kloc=0, ics=None, minxi=-1, maxxi=2.0,
                extramodels=False, rust=False, mlcp=True, debug=False):
     """
-    Generate random samples from the GPD with calibrating prior.
+    Passed data from the Generalized Pareto Distribution, generate random samples from the GPD with calibrating prior.
 
     Parameters
     ----------
@@ -344,7 +345,7 @@ def dgpd_k1_cp(x, y=None, kloc=0, ics=None, customprior=0,
                minxi=-1, maxxi=2.0, extramodels=False,
                rust=False, nrust=1000, debug=False):
     """
-    Compute the density function for the GPD with calibrating prior.
+    Passed data from the Generalized Pareto Distribution, compute the density function for the GPD with calibrating prior.
 
     Parameters
     ----------
@@ -422,7 +423,7 @@ def pgpd_k1_cp(x, y=None, kloc=0, ics=None, customprior=0,
                minxi=-1, maxxi=2.0, extramodels=False,
                rust=False, nrust=1000, debug=False):
     """
-    Compute the cumulative distribution function for the GPD with calibrating prior.
+    Passed data from the Generalized Pareto Distribution, compute the cumulative distribution function for the GPD with calibrating prior.
 
     Parameters
     ----------
