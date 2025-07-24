@@ -12,7 +12,54 @@ def qgev_p1_cp(x, t, t0=None, n0=None, p=np.arange(0.1, 1.0, 0.1), ics=np.array(
                fdalpha=0.01, minxi=-1, maxxi=1, means=False, waicscores=False, extramodels=False,
                pdf=False, dmgs=True, rust=False, nrust=100000, predictordata=True,
                centering=True, debug=False):
-    """Generalized Extreme Value Distribution with a Predictor, Predictions Based on a Calibrating Prior """
+    """Generalized Extreme Value Distribution with a Predictor, Predictions Based on a Calibrating Prior.
+
+    Parameters
+    ----------
+    x : array_like
+        Input data array.
+    t : array_like
+        Predictor variable array.
+    t0 : array_like or None, optional
+        Predictor values for prediction (default is None).
+    n0 : int or None, optional
+        Number of prediction points (default is None).
+    p : array_like, optional
+        Probabilities for quantile calculation (default is np.arange(0.1, 1.0, 0.1)).
+    ics : array_like, optional
+        Initial parameter estimates for optimization (default is [0, 0, 0, 0]).
+    fdalpha : float, optional
+        Finite difference step for PDF estimation (default is 0.01).
+    minxi : float, optional
+        Minimum value for the shape parameter xi (default is -1).
+    maxxi : float, optional
+        Maximum value for the shape parameter xi (default is 1).
+    means : bool, optional
+        Whether to compute means for extra models (default is False).
+    waicscores : bool, optional
+        Whether to compute WAIC scores (default is False).
+    extramodels : bool, optional
+        Whether to compute extra models (default is False).
+    pdf : bool, optional
+        Whether to compute PDFs (default is False).
+    dmgs : bool, optional
+        Whether to use the DMGS method (default is True).
+    rust : bool, optional
+        Whether to use the rust method (default is False).
+    nrust : int, optional
+        Number of rust simulations (default is 100000).
+    predictordata : bool, optional
+        Whether to return predictor data (default is True).
+    centering : bool, optional
+        Whether to center the predictor variable (default is True).
+    debug : bool, optional
+        If True, print debug information (default is False).
+
+    Returns
+    -------
+    dict
+        Dictionary containing ML parameters, quantiles, PDFs, means, WAIC scores, and other results.
+    """
     
     # Input validation
     assert np.all(np.isfinite(x)) and not np.any(np.isnan(x))
@@ -223,7 +270,41 @@ def qgev_p1_cp(x, t, t0=None, n0=None, p=np.arange(0.1, 1.0, 0.1), ics=np.array(
 
 def rgev_p1_cp(n, x, t, t0=None, n0=None, ics=np.array([0,0,0,0]),
                minxi=-1, maxxi=1, extramodels=False, rust=False, mlcp=True, debug=False):
-    """Random generation for GEV distribution with predictor and calibrating prior    """
+    """
+    Random generation for GEV distribution with predictor and calibrating prior.
+
+    Parameters
+    ----------
+    n : int
+        Number of samples to generate.
+    x : array_like
+        Input data array.
+    t : array_like
+        Predictor variable array.
+    t0 : array_like or None, optional
+        Predictor values for prediction (default is None).
+    n0 : int or None, optional
+        Number of prediction points (default is None).
+    ics : array_like, optional
+        Initial parameter estimates for optimization (default is [0, 0, 0, 0]).
+    minxi : float, optional
+        Minimum value for the shape parameter xi (default is -1).
+    maxxi : float, optional
+        Maximum value for the shape parameter xi (default is 1).
+    extramodels : bool, optional
+        Whether to compute extra models (default is False).
+    rust : bool, optional
+        Whether to use the rust method (default is False).
+    mlcp : bool, optional
+        Whether to use ML and CP deviates (default is True).
+    debug : bool, optional
+        If True, print debug information (default is False).
+
+    Returns
+    -------
+    dict
+        Dictionary containing ML parameters, ML deviates, CP deviates, RU deviates, and method info.
+    """
     
     assert np.all(np.isfinite(x)) and not np.any(np.isnan(x))
     assert np.all(np.isfinite(t)) and not np.any(np.isnan(t))
@@ -272,7 +353,42 @@ def rgev_p1_cp(n, x, t, t0=None, n0=None, ics=np.array([0,0,0,0]),
 def dgev_p1_cp(x, t, t0=None, n0=None, y=None, ics=np.array([0,0,0,0]),
                minxi=-1, maxxi=1, extramodels=False,
                rust=False, nrust=1000, centering=True, debug=False):
-    """Density function for GEV distribution with predictor and calibrating prior"""
+    """
+    Density function for GEV distribution with predictor and calibrating prior
+    Parameters
+    ----------
+    x : array_like
+        Input data array.
+    t : array_like
+        Predictor variable array.
+    t0 : array_like or None, optional
+        Predictor values for prediction (default is None).
+    n0 : int or None, optional
+        Number of prediction points (default is None).
+    y : array_like or None, optional
+        Points at which to evaluate the density (default is x).
+    ics : array_like, optional
+        Initial parameter estimates for optimization (default is [0, 0, 0, 0]).
+    minxi : float, optional
+        Minimum value for the shape parameter xi (default is -1).
+    maxxi : float, optional
+        Maximum value for the shape parameter xi (default is 1).
+    extramodels : bool, optional
+        Whether to compute extra models (default is False).
+    rust : bool, optional
+        Whether to use the rust method (default is False).
+    nrust : int, optional
+        Number of rust simulations (default is 1000).
+    centering : bool, optional
+        Whether to center the predictor variable (default is True).
+    debug : bool, optional
+        If True, print debug information (default is False).
+
+    Returns
+    -------
+    dict
+        Dictionary containing ML parameters, ML PDF, RU PDF, and method info.
+    """
     
     if y is None:
         y = x
@@ -340,7 +456,43 @@ def dgev_p1_cp(x, t, t0=None, n0=None, y=None, ics=np.array([0,0,0,0]),
 def pgev_p1_cp(x, t, t0=None, n0=None, y=None, ics=np.array([0,0,0,0]),
                minxi=-1, maxxi=1, extramodels=False,
                rust=False, nrust=1000, centering=True, debug=False):
-    """Distribution function for GEV distribution with predictor and calibrating prior    """
+    """
+    Distribution function for GEV distribution with predictor and calibrating prior.
+
+    Parameters
+    ----------
+    x : array_like
+        Input data array.
+    t : array_like
+        Predictor variable array.
+    t0 : array_like or None, optional
+        Predictor values for prediction (default is None).
+    n0 : int or None, optional
+        Number of prediction points (default is None).
+    y : array_like or None, optional
+        Points at which to evaluate the CDF (default is x).
+    ics : array_like, optional
+        Initial parameter estimates for optimization (default is [0, 0, 0, 0]).
+    minxi : float, optional
+        Minimum value for the shape parameter xi (default is -1).
+    maxxi : float, optional
+        Maximum value for the shape parameter xi (default is 1).
+    extramodels : bool, optional
+        Whether to compute extra models (default is False).
+    rust : bool, optional
+        Whether to use the rust method (default is False).
+    nrust : int, optional
+        Number of rust simulations (default is 1000).
+    centering : bool, optional
+        Whether to center the predictor variable (default is True).
+    debug : bool, optional
+        If True, print debug information (default is False).
+
+    Returns
+    -------
+    dict
+        Dictionary containing ML parameters, ML CDF, RU CDF, and method info.
+    """
     
     if y is None:
         y = x
@@ -407,7 +559,30 @@ def pgev_p1_cp(x, t, t0=None, n0=None, y=None, ics=np.array([0,0,0,0]),
 
 def tgev_p1_cp(n, x, t, ics=np.array([0,0,0,0]),
                extramodels=False, debug=False):
-    """Theta sampling for GEV distribution with predictor and calibrating prior  """
+    """Not implemented: Theta sampling for GEV distribution with predictor and calibrating prior
+
+    Parameters
+    ----------
+    n : int
+        Number of theta samples to generate.
+    x : array_like
+        Input data array.
+    t : array_like
+        Predictor variable array.
+    ics : array_like, optional
+        Initial parameter estimates for optimization (default is [0, 0, 0, 0]).
+    extramodels : bool, optional
+        Whether to compute extra models (default is False).
+    debug : bool, optional
+        If True, print debug information (default is False).
+
+    Returns
+    -------
+    dict
+        Dictionary containing theta samples.
+    """
+
+    raise Exception('tgev_p1_cp (and rust) is not yet implemented in fitdistcp; please use the dmgs method.')
     
     assert np.all(np.isfinite(x)) and not np.any(np.isnan(x))
     assert np.all(np.isfinite(t)) and not np.any(np.isnan(t))

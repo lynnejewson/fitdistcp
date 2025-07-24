@@ -21,21 +21,38 @@ def qgev_cp(x: Union[np.ndarray, List, float],
            dmgs: bool = True,
            debug: bool = False) -> Dict[str, Any]:
     """
-    Generalized Extreme Value Distribution, Predictions Based on a Calibrating Prior
-    
-    The GEV distribution has distribution function
-    F(x;μ,σ,ξ) = exp(-t(x;μ,σ,ξ))
-    where
-    t(x;μ,σ,ξ) = 
-        [1+ξ(x-μ)/σ]^(-1/ξ) if ξ ≠ 0
-        exp(-(x-μ)/σ) if ξ = 0
-    where
-    x is the random variable and μ,σ>0,ξ are the parameters.
-    (scipy.stats.genextreme uses shape parameter c=-ξ.)
-    
-    The calibrating prior we use is given by
-    π(μ,σ,ξ) ∝ 1/σ
-    as given in Jewson et al. (2025).
+    Generalized Extreme Value Distribution, Predictions based on a Calibrating Prior. The calibrating prior we use is given by
+    π(μ,σ,ξ) ∝ 1/σ as given in Jewson et al. (2025).
+
+    Parameters
+    ----------
+    x : array_like
+        Input data array.
+    p : array_like, optional
+        Probabilities for quantile calculation (default is np.arange(0.1, 1.0, 0.1)).
+    ics : list of float, optional
+        Initial parameter estimates for optimization (default is [0, 0, 0]).
+    fdalpha : float, optional
+        Finite difference step for PDF estimation (default is 0.01).
+    means : bool, optional
+        Whether to compute means for extra models (default is False).
+    waicscores : bool, optional
+        Whether to compute WAIC scores (default is False).
+    extramodels : bool, optional
+        Whether to compute extra models (default is False).
+    pdf : bool, optional
+        Whether to compute PDFs (default is False).
+    customprior : float, optional
+        Custom prior value for shape parameter (default is 0).
+    dmgs : bool, optional
+        Whether to use the DMGS method (default is True).
+    debug : bool, optional
+        If True, print debug information (default is False).
+
+    Returns
+    -------
+    dict
+        Dictionary containing ML parameters, quantiles, PDFs, means, WAIC scores, and other results.
     """
     
     # 1 intro
@@ -239,7 +256,29 @@ def rgev_cp(n: int, x: Union[np.ndarray, List, float],
            extramodels: bool = False,
            mlcp: bool = True,
            debug: bool = False) -> Dict[str, Any]:
-    """Random generation for GEV distribution with calibrating prior"""
+    """
+    Generate random samples from the GEV distribution with calibrating prior.
+
+    Parameters
+    ----------
+    n : int
+        Number of samples to generate.
+    x : array_like
+        Input data array.
+    ics : list of float, optional
+        Initial parameter estimates for optimization (default is [0, 0, 0]).
+    extramodels : bool, optional
+        Whether to compute extra models (default is False).
+    mlcp : bool, optional
+        Whether to use ML and CP deviates (default is True).
+    debug : bool, optional
+        If True, print debug information (default is False).
+
+    Returns
+    -------
+    dict
+        Dictionary containing ML parameters, ML deviates, CP deviates, RU deviates, and method info.
+    """
     
     # optional parameter removed until rust is implemented
     rust = False
@@ -282,7 +321,27 @@ def dgev_cp(x: Union[np.ndarray, List, float],
            ics: Optional[List[float]] = [0, 0, 0],
            extramodels: bool = False,
            debug: bool = False) -> Dict[str, Any]:
-    """Density function for GEV distribution with calibrating prior"""
+    """
+    Compute the density function for the GEV distribution with calibrating prior.
+
+    Parameters
+    ----------
+    x : array_like
+        Input data array.
+    y : array_like, optional
+        Points at which to evaluate the density (default is x).
+    ics : list of float, optional
+        Initial parameter estimates for optimization (default is [0, 0, 0]).
+    extramodels : bool, optional
+        Whether to compute extra models (default is False).
+    debug : bool, optional
+        If True, print debug information (default is False).
+
+    Returns
+    -------
+    dict
+        Dictionary containing ML parameters, ML PDF, RU PDF, and method info.
+    """
 
     # optional parameters removed until rust is implemented
     rust = False
@@ -334,7 +393,27 @@ def pgev_cp(x: Union[np.ndarray, List, float],
            ics: Optional[List[float]] = [0, 0, 0],
            extramodels: bool = False,
            debug: bool = False) -> Dict[str, Any]:
-    """Cumulative distribution function for GEV distribution with calibrating prior"""
+    """
+    Compute the cumulative distribution function for the GEV distribution with calibrating prior.
+
+    Parameters
+    ----------
+    x : array_like
+        Input data array.
+    y : array_like, optional
+        Points at which to evaluate the CDF (default is x).
+    ics : list of float, optional
+        Initial parameter estimates for optimization (default is [0, 0, 0]).
+    extramodels : bool, optional
+        Whether to compute extra models (default is False).
+    debug : bool, optional
+        If True, print debug information (default is False).
+
+    Returns
+    -------
+    dict
+        Dictionary containing ML parameters, ML CDF, RU CDF, and method info.
+    """
 
     # optional parameters removed until rust is implemented
     rust = False
@@ -387,8 +466,28 @@ def tgev_cp(n: int, x: Union[np.ndarray, List, float],
            ics: Optional[List[float]] = None,
            extramodels: bool = False,
            debug: bool = False) -> Dict[str, Any]:
-    """Theta sampling for GEV distribution with calibrating prior"""
+    """
+    Not yet implemented: Theta sampling for the GEV distribution with calibrating prior.
 
+    Parameters
+    ----------
+    n : int
+        Number of theta samples to generate.
+    x : array_like
+        Input data array.
+    ics : list of float, optional
+        Initial parameter estimates for optimization (default is [0, 0, 0]).
+    extramodels : bool, optional
+        Whether to compute extra models (default is False).
+    debug : bool, optional
+        If True, print debug information (default is False).
+
+    Returns
+    -------
+    dict
+        Dictionary containing theta samples.
+    """
+        
     raise Exception('tgev_cp (and rust) is not yet implemented in fitdistcp; please use the dmgs method.')
     
     x = np.asarray(x)

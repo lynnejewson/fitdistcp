@@ -30,6 +30,36 @@ def qgpd_k1_cp(x, p=None, kloc=0, ics=None, fdalpha=0.01, customprior=0,
     value for the shape parameter that lies outside the range (minxi,maxxi),
     since outside this range there may be numerical problems.
     Such values seldom occur in real observed data for maxima.
+
+    Parameters
+    ----------
+    x : array_like
+        Input data array.
+    p : array_like, optional
+        Probabilities for quantile calculation (default is np.arange(0.1, 1.0, 0.1)).
+    ics : list of float, optional
+        Initial parameter estimates for optimization (default is [0, 0]).
+    fdalpha : float, optional
+        Finite difference step for PDF estimation (default is 0.01).
+    means : bool, optional
+        Whether to compute means for extra models (default is False).
+    waicscores : bool, optional
+        Whether to compute WAIC scores (default is False).
+    extramodels : bool, optional
+        Whether to compute extra models (default is False).
+    pdf : bool, optional
+        Whether to compute PDFs (default is False).
+    customprior : float, optional
+        Custom prior value for shape parameter (default is 0).
+    dmgs : bool, optional
+        Whether to use the DMGS method (default is True).
+    debug : bool, optional
+        If True, print debug information (default is False).
+
+    Returns
+    -------
+    dict
+        Dictionary containing ML parameters, quantiles, PDFs, means, WAIC scores, and other results.
     """
     
     # 1 intro
@@ -233,7 +263,7 @@ def qgpd_k1_cp(x, p=None, kloc=0, ics=None, fdalpha=0.01, customprior=0,
         'lp2_quantiles': lp2_quantiles,
         'dpi_quantiles': dpi_quantiles,
         'ml_pdf': ml_pdf,
-        'rh_flat_pdf': rh_flat_pdf,
+        'cp_pdf': rh_flat_pdf,
         'maic': maic,
         'waic1': waic1,
         'waic2': waic2,
@@ -245,7 +275,29 @@ def qgpd_k1_cp(x, p=None, kloc=0, ics=None, fdalpha=0.01, customprior=0,
 
 def rgpd_k1_cp(n, x, kloc=0, ics=None, minxi=-1, maxxi=2.0,
                extramodels=False, rust=False, mlcp=True, debug=False):
-    """Random number generation for GPD with known location and calibrating prior"""
+    """
+    Generate random samples from the GPD with calibrating prior.
+
+    Parameters
+    ----------
+    n : int
+        Number of samples to generate.
+    x : array_like
+        Input data array.
+    ics : list of float, optional
+        Initial parameter estimates for optimization (default is [0, 0]).
+    extramodels : bool, optional
+        Whether to compute extra models (default is False).
+    mlcp : bool, optional
+        Whether to use ML and CP deviates (default is True).
+    debug : bool, optional
+        If True, print debug information (default is False).
+
+    Returns
+    -------
+    dict
+        Dictionary containing ML parameters, ML deviates, CP deviates, RU deviates, and method info.
+    """
     
     if ics is None:
         ics = np.array([0, 0])
@@ -291,7 +343,27 @@ def rgpd_k1_cp(n, x, kloc=0, ics=None, minxi=-1, maxxi=2.0,
 def dgpd_k1_cp(x, y=None, kloc=0, ics=None, customprior=0,
                minxi=-1, maxxi=2.0, extramodels=False,
                rust=False, nrust=1000, debug=False):
-    """Density function for GPD with known location and calibrating prior"""
+    """
+    Compute the density function for the GPD with calibrating prior.
+
+    Parameters
+    ----------
+    x : array_like
+        Input data array.
+    y : array_like, optional
+        Points at which to evaluate the density (default is x).
+    ics : list of float, optional
+        Initial parameter estimates for optimization (default is [0, 0]).
+    extramodels : bool, optional
+        Whether to compute extra models (default is False).
+    debug : bool, optional
+        If True, print debug information (default is False).
+
+    Returns
+    -------
+    dict
+        Dictionary containing ML parameters, ML PDF, RU PDF, and method info.
+    """
     
     if y is None:
         y = x
@@ -349,7 +421,27 @@ def dgpd_k1_cp(x, y=None, kloc=0, ics=None, customprior=0,
 def pgpd_k1_cp(x, y=None, kloc=0, ics=None, customprior=0,
                minxi=-1, maxxi=2.0, extramodels=False,
                rust=False, nrust=1000, debug=False):
-    """Cumulative distribution function for GPD with known location and calibrating prior"""
+    """
+    Compute the cumulative distribution function for the GPD with calibrating prior.
+
+    Parameters
+    ----------
+    x : array_like
+        Input data array.
+    y : array_like, optional
+        Points at which to evaluate the CDF (default is x).
+    ics : list of float, optional
+        Initial parameter estimates for optimization (default is [0, 0]).
+    extramodels : bool, optional
+        Whether to compute extra models (default is False).
+    debug : bool, optional
+        If True, print debug information (default is False).
+
+    Returns
+    -------
+    dict
+        Dictionary containing ML parameters, ML CDF, RU CDF, and method info.
+    """
     
     if y is None:
         y = x
@@ -405,7 +497,29 @@ def pgpd_k1_cp(x, y=None, kloc=0, ics=None, customprior=0,
 
 
 def tgpd_k1_cp(n, x, kloc=0, ics=None, extramodels=False, debug=False):
-    """Theta sampling for GPD with known location and calibrating prior"""
+    """
+    Not implemented: Theta sampling for the GPD with calibrating prior.
+
+    Parameters
+    ----------
+    n : int
+        Number of theta samples to generate.
+    x : array_like
+        Input data array.
+    ics : list of float, optional
+        Initial parameter estimates for optimization (default is [0, 0]).
+    extramodels : bool, optional
+        Whether to compute extra models (default is False).
+    debug : bool, optional
+        If True, print debug information (default is False).
+
+    Returns
+    -------
+    dict
+        Dictionary containing theta samples.
+    """
+        
+    raise Exception('tgpd_k1_cp (and rust) is not yet implemented in fitdistcp; please use the dmgs method.')
     
     if ics is None:
         ics = np.array([0, 0])
