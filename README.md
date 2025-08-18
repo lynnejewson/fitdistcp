@@ -6,6 +6,8 @@ fitdistcp implements the method developed in *Reducing Reliability Bias in Asses
 
 More information and examples are available at https://www.fitdistcp.info/index.html, including the equivalent (more comprehensive) R package.
 
+Development of this package was funded by the Lighthill Risk Network: lighthillrisknetwork.org.
+
 
 ### Tests
 - The cdf and pdf can be estimated for a set of data, using the ML or CP method, and plotted.
