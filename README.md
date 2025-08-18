@@ -4,7 +4,7 @@ fitdistcp is a free Python package for fitting statistical models using calibrat
 
 fitdistcp implements the method developed in *Reducing Reliability Bias in Assessments of Extreme Weather Risk using Calibrating Priors*, S. Jewson, T. Sweeting and L. Jewson (2024): https://doi.org/10.5194/ascmo-11-1-2025.
 
-More information and examples are available at https://www.fitdistcp.info/index.html, including the equivalent (more comprehensive) R package.
+More information and examples are available at https://www.fitdistcp.info, including the equivalent (more comprehensive) R package.
 
 Development of this package was funded by the Lighthill Risk Network: https://lighthillrisknetwork.org.
 
