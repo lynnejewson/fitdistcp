@@ -10,7 +10,7 @@ Development of this package was funded by the Lighthill Risk Network: https://li
 
 
 ### Tests
-- The cdf and pdf can be estimated for a set of data, using the ML or CP method, and plotted.
+- The cdf and pdf can be estimated for a set of data, using the ML (Maximum Likelihood) or CP (Calibrating Priors) method, and plotted.
 - Reliability tests are provided. A reliability test involves generating a sample from a known distribution, and calculating the quantiles using the ML, or CP method. The actual quantiles can be plotted against the estimated quantiles, in various different ways, to judge the reliability of the method.
 
 
