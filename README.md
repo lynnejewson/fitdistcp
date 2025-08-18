@@ -1,6 +1,6 @@
 # fitdistcp
 
-fitdistcp is a free Python package for fitting statistical models using calibrating priors, with the goal of making reliable predictions. The functions provided for each distribution (GEV, GEV with 1 parameter, and GPD) accept sample data x as a parameter and return a dict of the relevant results, such as quantiles, cdf, pdf, and maximum likelihood parameters.
+fitdistcp is a free Python package for fitting statistical models using calibrating priors, with the goal of making reliable predictions. The functions provided for each distribution (GEV, GEV with 1 predictor, and GPD) accept sample data x as a parameter and return a dict of the relevant results, such as quantiles, cdf, pdf, and maximum likelihood parameters.
 
 fitdistcp implements the method developed in *Reducing Reliability Bias in Assessments of Extreme Weather Risk using Calibrating Priors*, S. Jewson, T. Sweeting and L. Jewson (2024): https://doi.org/10.5194/ascmo-11-1-2025.
 
@@ -14,16 +14,18 @@ More information and examples are available at https://www.fitdistcp.info/index.
 
 ### Example: Fitting a GEV distribution
 ```python
-import fitdistcp
 import numpy as np
 import scipy.stats
 import matplotlib.pyplot as plt
-x = genextreme.rvs(0, size=20)                              # make some example training data 
-p = np.range(0.001,0.999,0.001)                             # define the probabilities at which we wish to calculate the quantiles
-q = qgev_cp(x,p)                                            # this command calculates two sets of predictive quantiles for the GEV, 
+import fitdistcp.genextreme
+
+x = scipy.stats.genextreme.rvs(0, size=20)                  # make some example training data 
+p = np.arange(0.001,0.999,0.001)                            # define the probabilities at which we wish to calculate the quantiles
+q = fitdistcp.genextreme.ppf(x,p)                           # this command calculates two sets of predictive quantiles for the GEV, 
                                                             # one based on maxlik, and one that includes parameter uncertainty based on a calibrating prior
-print(q[‘ml_params’])                                       # have a look at the maxlik parameters
-plt.plot(q[‘ml_quantiles’],p)                               # plot the maxlik quantiles
-plt.plot(q[‘cp_quantiles’],p,’o’,color="red")               # overplot the quantiles that include parameter uncertainty, which will have fatter tails
+print(q['ml_params'])                                       # have a look at the maxlik parameters
+plt.plot(q['ml_quantiles'],p, label='ML')                   # plot the maxlik quantiles
+plt.plot(q['cp_quantiles'],p,color='red', label='CP')       # plot the quantiles that include parameter uncertainty
+plt.legend()
 plt.show()
 ```
