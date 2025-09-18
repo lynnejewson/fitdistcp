@@ -1,11 +1,14 @@
 import numpy as np
 import scipy.stats as stats
 import scipy.optimize as optimize
+from scipy.stats import genpareto
 
 import utils as cp_utils
 import evaluate_dmgs_equation as cp_dmgs
 import genpareto_derivs as cp_gpd_c
 import genpareto_libs as cp_gpd_b
+from ru import Ru
+import reltest_libs
 
 
 def ppf(x, p=None, kloc=0, ics=None, fdalpha=0.01, customprior=0,
@@ -320,7 +323,7 @@ def rvs(n, x, kloc=0, ics=None, minxi=-1, maxxi=2.0,
         cp_deviates = q['cp_quantiles']
     
     if rust:
-        th = tgpd_k1_cp(n, x)['theta_samples']
+        th = tsf(n, x)['theta_samples']
         ru_deviates = np.zeros(n)
         for i in range(n):
             c = -th[i, 1]  # Convert xi to scipy parameterization
@@ -393,7 +396,7 @@ def pdf(x, y=None, kloc=0, ics=np.array([0, 0]),
     ru_pdf = "rust not selected"
     
     if rust and not revert2ml:
-        th = tgpd_k1_cp(nrust, x)['theta_samples']
+        th = tsf(nrust, x)['theta_samples']
         ru_pdf = np.zeros(len(y))
         for ir in range(nrust):
             c = -th[ir, 1]  # Convert xi to scipy parameterization
@@ -469,7 +472,7 @@ def cdf(x, y=None, kloc=0, ics = np.array([0, 0]), customprior=0,
     ru_cdf = "rust not selected"
     
     if rust and not revert2ml:
-        th = tgpd_k1_cp(nrust, x)['theta_samples']
+        th = tsf(nrust, x)['theta_samples']
         ru_cdf = np.zeros(len(y))
         for ir in range(nrust):
             c = -th[ir, 1]  # Convert xi to scipy parameterization
@@ -489,9 +492,9 @@ def cdf(x, y=None, kloc=0, ics = np.array([0, 0]), customprior=0,
     return op
 
 
-def tgpd_k1_cp(n, x, kloc=0, ics=None, extramodels=False, debug=False):
+def tsf(n, x, kloc=0):
     """
-    Not implemented: Theta sampling for the GPD with calibrating prior.
+    Theta sampling for the GPD with calibrating prior.
 
     Parameters
     ----------
@@ -501,29 +504,86 @@ def tgpd_k1_cp(n, x, kloc=0, ics=None, extramodels=False, debug=False):
         Input data array.
     ics : list of float, optional
         Initial parameter estimates for optimization (default is [0, 0]).
-    extramodels : bool, optional
-        Whether to compute extra models (default is False).
-    debug : bool, optional
-        If True, print debug information (default is False).
 
     Returns
     -------
-    dict
-        Dictionary containing theta samples.
+    array of float
+        Theta samples.
     """
-        
-    raise Exception('tgpd_k1_cp (and rust) is not yet implemented in fitdistcp; please use the dmgs method.')
-    
-    if ics is None:
-        ics = np.array([0, 0])
     
     x = cp_utils.to_array(x)
     
     assert np.all(np.isfinite(x)) and not np.any(np.isnan(x)), "x must be finite and not NA"
-    assert len(ics) == 2, "ics must have length 2"
     assert not np.any(x < 0), "x must be non-negative"
     
-    ics = cp_gpd_b.gpd_k1_setics(x, ics)
-    t = cp_utils.ru(cp_gpd_b.gpd_k1_logf, x=x, kloc=kloc, n=n, d=2, init=ics)
+    ics = cp_gpd_b.gpd_k1_setics(x, [0, 0])
+    t = Ru(cp_gpd_b.gpd_k1_logf, x=x, d=2, ics=ics, kloc=kloc)
     
-    return {'theta_samples': t['sim_vals']}
+    return {'theta_samples': t.rvs(n=n)}
+
+
+def reltest(plot=True, ntrials=50, nx=30, p=0.0001*np.asarray(range(1,10000)), kloc=0, scale=1, xi=0, plot_option='tail'):
+    '''
+    Reliability test.
+
+    Parameters
+    ----------
+    plot: bool (default = True)
+        Create a plot of the results immediately.
+    desired_p : array_like
+        Probabilities at which to calculate quantiles.
+    ntrials : int
+        Number of trials to average over.
+    nx : int
+        Number of samples per trial.
+    kloc: float (default = 0)
+        Loc parameter to test.
+    xi: float (default = 0)
+        Shape parameter to test.
+    scale: float (default = 1)
+        Scale parameter to test.
+    plot_option: str (default='tail')
+        For use when plot=True, determines which graph to output.
+        Options are 'unformatted', 'b', 'd', 'tail', 'i', 'all'.
+        'tail' demonstrates tail probabilities the best.
+    
+    Returns
+    -------
+    dict
+        Dictionary with keys:
+            'actual_p_ml' : array_like
+                Achieved probabilities using ML quantiles.
+            'actual_p_cp' : array_like
+                Achieved probabilities using CP quantiles.
+
+    Each trial generates nx samples and calculates quantiles using the two methods.
+    The difference between the methods is clearest when nx is in the range of 20-60.
+    Increasing ntrials reduces the effect of random variations in the trials (100 is sufficient for many purposes).
+    '''
+
+    p_actual_ml_total = np.zeros(len(p))
+    p_actual_cp_total = np.zeros(len(p))
+
+    for i in range(ntrials):
+        x = genpareto.rvs(-xi, loc=kloc, scale=scale, size=nx)
+
+        info_cp = ppf(x, p)
+        q_cp = info_cp['cp_quantiles']
+        q_ml = info_cp['ml_quantiles']
+
+        # feed back in for the actual probability
+        p_actual_ml_total += genpareto.cdf(q_ml, -xi, loc=kloc, scale=scale)
+        p_actual_cp_total += genpareto.cdf(q_cp, -xi, loc=kloc, scale=scale)
+
+    p_actual_ml_avg = p_actual_ml_total / ntrials
+    p_actual_cp_avg = p_actual_cp_total / ntrials
+
+    result = {
+        'actual_p_ml' : np.ndarray.tolist(p_actual_ml_avg), 
+        'actual_p_cp': np.ndarray.tolist(p_actual_cp_avg), 
+        'p': np.ndarray.tolist(p)
+        }
+    if plot:
+        reltest_libs.plot(result, plot_option)
+
+    return result

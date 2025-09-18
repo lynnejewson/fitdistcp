@@ -7,6 +7,7 @@ import genextreme_p1_libs
 import genextreme_p12_libs
 import genextreme_p12_derivs
 import evaluate_dmgs_equation as cp_dmgs
+from ru import Ru
 
 
 def ppf(x, t1, t2, t01=np.nan, t02=np.nan, n01=np.nan, n02=np.nan, p=np.arange(0.1, 1.0, 0.1),
@@ -290,7 +291,7 @@ def rvs(n, x, t1, t2, t01=np.nan, t02=np.nan, n01=np.nan, n02=np.nan, ics=np.arr
         cp_deviates = q['cp_quantiles']
     
     if rust:
-        th = tgev_p12_cp(n, x, t1, t2)['theta_samples']
+        th = tsf(n, x, t1, t2)['theta_samples']
         ru_deviates = np.zeros(n)
         for i in range(n):
             mu = th[i, 0] + t01 * th[i, 1]
@@ -377,7 +378,7 @@ def pdf(x, t1, t2, t01=np.nan, t02=np.nan, n01=np.nan, n02=np.nan, y=None, ics=n
     if rust and not revert2ml:
         if debug:
             print(" rust")
-        th = tgev_p12_cp(nrust, x=x, t1=t1, t2=t2, debug=debug)['theta_samples']
+        th = tsf(nrust, x=x, t1=t1, t2=t2, debug=debug)['theta_samples']
         if debug:
             print(" tgev call done")
         ru_pdf = np.zeros(len(y))
@@ -460,7 +461,7 @@ def cdf(x, t1, t2, t01=np.nan, t02=np.nan, n01=np.nan, n02=np.nan, y=None, ics=n
     ml_params = dd['ml_params']
     
     if rust and not revert2ml:
-        th = tgev_p12_cp(nrust, x, t1, t2)['theta_samples']
+        th = tsf(nrust, x, t1, t2)['theta_samples']
         ru_cdf = np.zeros(len(y))
         for ir in range(nrust):
             mu = th[ir, 0] + t01 * th[ir, 1]
@@ -489,12 +490,32 @@ def cdf(x, t1, t2, t01=np.nan, t02=np.nan, n01=np.nan, n02=np.nan, y=None, ics=n
     
     return op
 
-def tgev_p12_cp(n, x, t1, t2, ics=np.array([0, 0, 0, 0, 0]), extramodels=False, debug=False):
-    """not implemented: Parameter sampling for GEV with two predictors and calibrating prior"""
+def tsf(n, x, t1, t2, ics=np.array([0, 0, 0, 0, 0]), debug=False):
+    """
+    Theta sampling for GEV distribution with predictor and calibrating prior
 
-    raise Exception('t sampling is not yet implemented.')
+    Parameters
+    ----------
+    n : int
+        Number of theta samples to generate.
+    x : array_like
+        Input data array.
+    t1 : array_like
+        Predictor variable array for loc.
+    t2 : array_like
+        Predictor variable array for scale.
+    ics : array_like, optional
+        Initial parameter estimates for optimization (default is [0, 0, 0, 0]).
+
+    Returns
+    -------
+    array of float
+        Array of theta_samples
+    """
     
-    # Input validation
+    x = cp_utils.to_array(x)
+    t1 = cp_utils.to_array(t1)
+    t2 = cp_utils.to_array(t2)
     assert np.all(np.isfinite(x)) and not np.any(np.isnan(x)), "x must be finite and not NA"
     assert len(t1) == len(x), "t1 must have same length as x"
     assert len(t2) == len(x), "t2 must have same length as x"
@@ -510,15 +531,14 @@ def tgev_p12_cp(n, x, t1, t2, ics=np.array([0, 0, 0, 0, 0]), extramodels=False, 
     if debug:
         print(f"sums={np.sum(x)},{np.sum(t1)},{np.sum(t2)},{n}")
     
-    th = ru(genextreme_p12_derivs.gev_p12_logf, x=x, t1=t1, t2=t2, n=n, d=5, init=np.array([0, 0, 0, 0, 0]))
+    t = Ru(genextreme_p12_libs.gev_p12_logf, x=x, args={'t1':t1, 't2':t2}, d=5, ics=[0, 0, 0, 0, 0], take_exp=True)
     if debug:
         print(" back from rust")
     
-    theta_samples = th['sim_vals']
+    theta_samples = t.rvs(n=n)
     
     # decentering
-    theta_samples[:, 0] = theta_samples[:, 0] - theta_samples[:, 1] * meant1
-    theta_samples[:, 2] = theta_samples[:, 2] - theta_samples[:, 3] * meant2
+    theta_samples[:,0] = theta_samples[:,0] - theta_samples[:,1]*meant1
+    theta_samples[:,2] = theta_samples[:,2] - theta_samples[:,3]*meant2
     
     return {'theta_samples': theta_samples}
-

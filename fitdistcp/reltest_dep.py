@@ -24,7 +24,7 @@ import reltest_libs
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 
-def reltest_expon(file, ntrials=100, nx=30, p=0.0001*np.asarray(range(1,10000))):
+def reltest_expon(ntrials=100, nx=30, p=0.0001*np.asarray(range(1,10000)), scale=1):
     '''
     Reliability test.
 
@@ -36,6 +36,8 @@ def reltest_expon(file, ntrials=100, nx=30, p=0.0001*np.asarray(range(1,10000)))
         Number of trials to average over.
     nx : int
         Number of samples per trial.
+    scale: float (default = 1)
+        Scale parameter.
     
     Returns
     -------
@@ -50,8 +52,6 @@ def reltest_expon(file, ntrials=100, nx=30, p=0.0001*np.asarray(range(1,10000)))
     The difference between the methods is clearest when nx is in the range of 20-60.
     Increasing ntrials reduces the effect of random variations in the trials (100 is sufficient for many purposes).
     '''
-
-    scale = 1
 
     p_actual_ml_total = np.zeros(len(p))
     p_actual_cp_total = np.zeros(len(p))
@@ -81,12 +81,12 @@ def reltest_expon(file, ntrials=100, nx=30, p=0.0001*np.asarray(range(1,10000)))
         'p': np.ndarray.tolist(p)
         }
 
-    json.dump(result, file)
+    return result
 
 
 
 
-def reltest_genextreme(file, ntrials=100, nx=30, p=0.0001*np.asarray(range(1,10000))):
+def reltest_genextreme(ntrials=100, nx=30, p=0.0001*np.asarray(range(1,10000)), xi=0, loc=0, scale=1):
     '''
     Reliability test.
 
@@ -98,6 +98,12 @@ def reltest_genextreme(file, ntrials=100, nx=30, p=0.0001*np.asarray(range(1,100
         Number of trials to average over.
     nx : int
         Number of samples per trial.
+    xi: float (default = 0)
+        Shape parameter to test.
+    loc: float (default = 0)
+        Loc parameter to test.
+    scale: float (default = 1)
+        Scale parameter to test.
     
     Returns
     -------
@@ -112,19 +118,16 @@ def reltest_genextreme(file, ntrials=100, nx=30, p=0.0001*np.asarray(range(1,100
     The difference between the methods is clearest when nx is in the range of 20-60.
     Increasing ntrials reduces the effect of random variations in the trials (100 is sufficient for many purposes).
     '''
-    xi = 0
-    mu = 0
-    sigma = 1
 
     p_actual_ml_total = np.zeros(len(p))
     p_actual_cp_total = np.zeros(len(p))
 
     for i in range(ntrials):
-        x = genextreme.rvs(-xi, loc=mu, scale=sigma, size=nx)
+        x = genextreme.rvs(-xi, loc=loc, scale=scale, size=nx)
         
         # calculate quantile using ML and CP methods
         # ML:
-        ics = [mu, sigma, xi]
+        ics = [loc, scale, xi]
         mu_ml, sigma_ml, xi_ml = minimize(lambda params: -cp_genextreme_libs.gev_loglik(params, x), ics, method='BFGS').x
         q_ml = genextreme.ppf(p, -xi_ml, loc=mu_ml, scale=sigma_ml) 
 
@@ -132,8 +135,8 @@ def reltest_genextreme(file, ntrials=100, nx=30, p=0.0001*np.asarray(range(1,100
         q_cp = cp_genextreme.ppf(x, p)['cp_quantiles']   
 
         # feed back in for the actual probability
-        p_actual_ml_total += genextreme.cdf(q_ml, -xi, loc=mu, scale=sigma)
-        p_actual_cp_total += genextreme.cdf(q_cp, -xi, loc=mu, scale=sigma)
+        p_actual_ml_total += genextreme.cdf(q_ml, -xi, loc=loc, scale=scale)
+        p_actual_cp_total += genextreme.cdf(q_cp, -xi, loc=loc, scale=scale)
 
     p_actual_ml_avg = p_actual_ml_total / ntrials
     p_actual_cp_avg = p_actual_cp_total / ntrials
@@ -144,10 +147,10 @@ def reltest_genextreme(file, ntrials=100, nx=30, p=0.0001*np.asarray(range(1,100
         'p': np.ndarray.tolist(p)
         }
 
-    json.dump(result, file)
+    return result
 
 
-def reltest_genpareto(file, ntrials=100, nx=30, p=0.0001*np.asarray(range(1,10000))):
+def reltest_genpareto(ntrials=100, nx=30, p=0.0001*np.asarray(range(1,10000)), kloc=0, scale=1, xi=0):
     '''
     Reliability test.
 
@@ -159,6 +162,12 @@ def reltest_genpareto(file, ntrials=100, nx=30, p=0.0001*np.asarray(range(1,1000
         Number of trials to average over.
     nx : int
         Number of samples per trial.
+    kloc: float (default = 0)
+        Loc parameter to test.
+    xi: float (default = 0)
+        Shape parameter to test.
+    scale: float (default = 1)
+        Scale parameter to test.
     
     Returns
     -------
@@ -173,19 +182,16 @@ def reltest_genpareto(file, ntrials=100, nx=30, p=0.0001*np.asarray(range(1,1000
     The difference between the methods is clearest when nx is in the range of 20-60.
     Increasing ntrials reduces the effect of random variations in the trials (100 is sufficient for many purposes).
     '''
-    kloc = 0
-    sigma = 1
-    xi = 0
 
     p_actual_ml_total = np.zeros(len(p))
     p_actual_cp_total = np.zeros(len(p))
 
     for i in range(ntrials):
-        x = genpareto.rvs(-xi, loc=kloc, scale=sigma, size=nx)
+        x = genpareto.rvs(-xi, loc=kloc, scale=scale, size=nx)
         
         # calculate quantile using ML and CP methods
         # ML:
-        ics = [sigma, xi]
+        ics = [scale, xi]
         sigma_ml, xi_ml = minimize(lambda params: -cp_genpareto_libs.gpd_k1_loglik(params, x, kloc), ics, method='BFGS').x
         q_ml = genpareto.ppf(p, -xi_ml, loc=kloc, scale=sigma_ml)
 
@@ -193,8 +199,8 @@ def reltest_genpareto(file, ntrials=100, nx=30, p=0.0001*np.asarray(range(1,1000
         q_cp = cp_genpareto.ppf(x, p)['cp_quantiles']
 
         # feed back in for the actual probability
-        p_actual_ml_total += genpareto.cdf(q_ml, -xi, loc=kloc, scale=sigma)
-        p_actual_cp_total += genpareto.cdf(q_cp, -xi, loc=kloc, scale=sigma)
+        p_actual_ml_total += genpareto.cdf(q_ml, -xi, loc=kloc, scale=scale)
+        p_actual_cp_total += genpareto.cdf(q_cp, -xi, loc=kloc, scale=scale)
 
     p_actual_ml_avg = p_actual_ml_total / ntrials
     p_actual_cp_avg = p_actual_cp_total / ntrials
@@ -205,10 +211,10 @@ def reltest_genpareto(file, ntrials=100, nx=30, p=0.0001*np.asarray(range(1,1000
         'p': np.ndarray.tolist(p)
         }
 
-    json.dump(result, file)
+    return result
 
 
-def reltest_gumbel(file, ntrials=100, nx=30, p=0.0001*np.asarray(range(1,10000))):
+def reltest_gumbel(ntrials=100, nx=30, p=0.0001*np.asarray(range(1,10000)), loc=0, scale=1):
     '''
     Reliability test.
 
@@ -220,6 +226,10 @@ def reltest_gumbel(file, ntrials=100, nx=30, p=0.0001*np.asarray(range(1,10000))
         Number of trials to average over.
     nx : int
         Number of samples per trial.
+    loc: float (default = 0)
+        Loc parameter to test.
+    scale: float (default = 1)
+        Scale parameter to test.
     
     Returns
     -------
@@ -234,8 +244,6 @@ def reltest_gumbel(file, ntrials=100, nx=30, p=0.0001*np.asarray(range(1,10000))
     The difference between the methods is clearest when nx is in the range of 20-60.
     Increasing ntrials reduces the effect of random variations in the trials (100 is sufficient for many purposes).
     '''
-    loc = 0
-    scale = 1
 
     p_actual_ml_total = np.zeros(len(p))
     p_actual_cp_total = np.zeros(len(p))
@@ -265,7 +273,7 @@ def reltest_gumbel(file, ntrials=100, nx=30, p=0.0001*np.asarray(range(1,10000))
         'p': np.ndarray.tolist(p)
         }
 
-    json.dump(result, file)
+    return result
 
 
 # -----------------------------------------------------------------------------------------

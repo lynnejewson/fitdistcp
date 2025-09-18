@@ -1,11 +1,14 @@
 import numpy as np
 from scipy import stats
 from scipy.optimize import minimize
+from scipy.stats import genextreme
 
 import evaluate_dmgs_equation as cp_dmgs
 import utils as cp_utils
 import genextreme_libs as cp_gev_b
 import genextreme_derivs as cp_gev_c
+from ru import Ru
+import reltest_libs
 
 
 def ppf(x, p = np.arange(0.1, 1.0, 0.1),
@@ -296,7 +299,7 @@ def rvs(n, x, ics  = [0, 0, 0], extramodels = False, mlcp = True):
         cp_deviates = q['cp_quantiles']
     
     if rust:
-        th = tgev_cp(n, x)['theta_samples']
+        th = tsf(n, x)['theta_samples']
         ru_deviates = np.zeros(n)
         for i in range(n):
             ru_deviates[i] = stats.genextreme.rvs(-th[i, 2], loc=th[i, 0], scale=th[i, 1])
@@ -362,7 +365,7 @@ def pdf(x, y = None, ics = [0, 0, 0]):
     ru_pdf = "rust not selected"
     
     if rust and not revert2ml:
-        th = tgev_cp(nrust, x)['theta_samples']
+        th = tsf(nrust, x)['theta_samples']
         ru_pdf = np.zeros(len(y))
         for ir in range(nrust):
             ru_pdf = ru_pdf + stats.genextreme.pdf(y, -th[ir, 2],loc=th[ir, 0], scale=th[ir, 1])
@@ -434,7 +437,7 @@ def cdf(x, y = None,
     ru_cdf = "rust not selected"
     
     if rust and not revert2ml:
-        th = tgev_cp(nrust, x)['theta_samples']
+        th = tsf(nrust, x)['theta_samples']
         ru_cdf = np.zeros(len(y))
         for ir in range(nrust):
             ru_cdf = ru_cdf + stats.genextreme.cdf(y, -th[ir, 2], loc=th[ir, 0], scale=th[ir, 1])
@@ -451,10 +454,9 @@ def cdf(x, y = None,
     }
 
 
-# not yet implemented
-def tgev_cp(n, x, ics = [0, 0, 0]):
+def tsf(n, x, ics=[0,0,0]):
     """
-    Not yet implemented: Theta sampling for the GEV distribution with calibrating prior.
+    Theta sampling for the GEV distribution with calibrating prior.
 
     Parameters
     ----------
@@ -463,26 +465,113 @@ def tgev_cp(n, x, ics = [0, 0, 0]):
     x : array_like
         Input data array.
     ics : list of float, optional
-        Initial parameter estimates for optimization (default is [0, 0, 0]).
-    extramodels : bool, optional
-        Whether to compute extra models (default is False).
-    debug : bool, optional
-        If True, print debug information (default is False).
+        Initial parameter estimates for optimization (default is [mean, std, 0]).
 
     Returns
     -------
     dict
         Dictionary containing theta samples.
     """
-        
-    raise Exception('tgev_cp (and rust) is not yet implemented in fitdistcp; please use the dmgs method.')
-    
+
     x = cp_utils.to_array(x)
     
     assert np.all(np.isfinite(x)) and not np.any(np.isnan(x)), "x must be finite and not NaN"
     assert len(ics) == 3, "ics must have length 3"
+
+    # Find ICS that lie in a permissible region
+    ics_accept = False
+
+    # attempt 0: (assuming xi=0)
+    ics = cp_gev_b.gev_setics(x, ics) 
+
+    # attempt 1:
+    ics = minimize(lambda params: -cp_gev_b.gev_loglik(params, x), ics, method='BFGS').x
+    ics_accept = ics[2] > -0.25 and not np.isnan(cp_gev_b.gev_loglik(ics, x))
+
+    # attempt 2:
+    #if not ics_accept:
+    #    print('Attempting pwm')
+    #    ics = cp_gev_b.gev_pwm_params(x)
+    #    ics_accept = ics[2] < 0.5 and not np.isnan(cp_gev_b.gev_loglik(ics, x))
     
-    ics = cp_gev_b.gev_setics(x, ics)
-    t = ru(cp_gev_b.gev_logf, x=x, n=n, d=3, init=ics)
+    # attempt 3:
+    #if not ics_accept:
+    #    print('Guh')
     
-    return {'theta_samples': t['sim_vals']}
+    t = Ru(cp_gev_b.gev_logf, x=x, d=3, ics=ics)
+    #t.info()
+    
+    return {'theta_samples': t.rvs(n=n)}
+
+
+def reltest(plot=True, ntrials=50, nx=30, p=0.0001*np.asarray(range(1,10000)), xi=0, loc=0, scale=1, plot_option='tail', disp=True):
+    '''
+    Reliability test.
+
+    Parameters
+    ----------
+    plot: bool (default = True)
+        Create a plot of the results immediately.
+    desired_p : array_like
+        Probabilities at which to calculate quantiles.
+    ntrials : int
+        Number of trials to average over.
+    nx : int
+        Number of samples per trial.
+    xi: float (default = 0)
+        Shape parameter to test.
+    loc: float (default = 0)
+        Loc parameter to test.
+    scale: float (default = 1)
+        Scale parameter to test.
+    plot_option: str (default='tail')
+        For use when plot=True, determines which graph to output.
+        Options are 'unformatted', 'b', 'd', 'tail', 'i', 'all'.
+        'tail' demonstrates tail probabilities the best.
+    
+    Returns
+    -------
+    dict
+        Dictionary with keys:
+            'actual_p_ml' : array_like
+                Achieved probabilities using ML quantiles.
+            'actual_p_cp' : array_like
+                Achieved probabilities using CP quantiles.
+
+    Each trial generates nx samples and calculates quantiles using the two methods.
+    The difference between the methods is clearest when nx is in the range of 20-60.
+    Increasing ntrials reduces the effect of random variations in the trials (100 is sufficient for many purposes).
+    '''
+    if disp:
+        print('Running reltest...')
+
+    p_actual_ml_total = np.zeros(len(p))
+    p_actual_cp_total = np.zeros(len(p))
+
+    for i in range(ntrials):
+        x = genextreme.rvs(-xi, loc=loc, scale=scale, size=nx)
+
+        info_cp = ppf(x, p)
+        q_cp = info_cp['cp_quantiles']
+        q_ml = info_cp['ml_quantiles']
+
+        # feed back in for the actual probability
+        p_actual_ml_total += genextreme.cdf(q_ml, -xi, loc=loc, scale=scale)
+        p_actual_cp_total += genextreme.cdf(q_cp, -xi, loc=loc, scale=scale)
+
+        if i%20 ==0 and disp:
+            print(f'\t{i/ntrials * 100}% complete')
+
+    p_actual_ml_avg = p_actual_ml_total / ntrials
+    p_actual_cp_avg = p_actual_cp_total / ntrials
+
+    result = {
+        'actual_p_ml' : np.ndarray.tolist(p_actual_ml_avg), 
+        'actual_p_cp': np.ndarray.tolist(p_actual_cp_avg), 
+        'p': np.ndarray.tolist(p)
+        }
+    
+    if plot:
+        reltest_libs.plot(result, plot_option)
+
+    return result

@@ -7,6 +7,7 @@ import utils as cp_utils
 import evaluate_dmgs_equation as cp_dmgs
 import genextreme_p1_libs as cp_gev_p1_b
 import genextreme_p1_derivs as cp_gev_p1_c
+from ru import Ru
 
 
 def ppf(x, t, t0=None, n0=None, p=np.arange(0.1, 1.0, 0.1), ics=np.array([0,0,0,0]),
@@ -335,7 +336,7 @@ def rvs(n, x, t, t0=None, n0=None, ics=np.array([0,0,0,0]),
         cp_deviates = q['cp_quantiles']
 
     if rust:
-        th = tgev_p1_cp(n, x, t)['theta_samples']
+        th = tsf(n, x, t)['theta_samples']
         ru_deviates = np.zeros(n)
         for i in range(n):
             mu = th[i,0] + t0 * th[i,1]
@@ -435,7 +436,7 @@ def pdf(x, t, t0=None, n0=None, y=None, ics=np.array([0,0,0,0]),
     ml_params = dd['ml_params']
 
     if rust and not revert2ml:
-        th = tgev_p1_cp(nrust, x, t)['theta_samples']
+        th = tsf(nrust, x, t)['theta_samples']
         ru_pdf = np.zeros(len(y))
         for ir in range(nrust):
             mu = th[ir,0] + t0 * th[ir,1]
@@ -539,7 +540,7 @@ def cdf(x, t, t0=None, n0=None, y=None, ics=np.array([0,0,0,0]),
     ml_params = dd['ml_params']
 
     if rust and not revert2ml:
-        th = tgev_p1_cp(nrust, x, t)['theta_samples']
+        th = tsf(nrust, x, t)['theta_samples']
         ru_cdf = np.zeros(len(y))
         for ir in range(nrust):
             mu = th[ir,0] + t0 * th[ir,1]
@@ -562,9 +563,9 @@ def cdf(x, t, t0=None, n0=None, y=None, ics=np.array([0,0,0,0]),
     
     return op
 
-def tgev_p1_cp(n, x, t, ics=np.array([0,0,0,0]),
-               extramodels=False, debug=False):
-    """Not implemented: Theta sampling for GEV distribution with predictor and calibrating prior
+def tsf(n, x, t, ics=np.array([0,0,0,0])):
+    """
+    Theta sampling for GEV distribution with predictor and calibrating prior
 
     Parameters
     ----------
@@ -576,33 +577,28 @@ def tgev_p1_cp(n, x, t, ics=np.array([0,0,0,0]),
         Predictor variable array.
     ics : array_like, optional
         Initial parameter estimates for optimization (default is [0, 0, 0, 0]).
-    extramodels : bool, optional
-        Whether to compute extra models (default is False).
-    debug : bool, optional
-        If True, print debug information (default is False).
 
     Returns
     -------
-    dict
-        Dictionary containing theta samples.
+    array of float
+        Array of theta_samples
     """
 
-    raise Exception('tgev_p1_cp (and rust) is not yet implemented in fitdistcp; please use the dmgs method.')
-    
-    assert np.all(np.isfinite(x)) and not np.any(np.isnan(x))
-    assert np.all(np.isfinite(t)) and not np.any(np.isnan(t))
-    assert len(ics) == 4
+    x = cp_utils.to_array(x)
+    t = cp_utils.to_array(t)
+    assert np.all(np.isfinite(x)) and not np.any(np.isnan(x)),  "x must be finite and not NA"
+    assert np.all(np.isfinite(t)) and not np.any(np.isnan(t)),  "t must be finite and not NA"
+    assert len(ics) == 4, "ics must have length 4"
 
     # centering
     meant = np.mean(t)
     t = t - meant
 
     ics = cp_gev_p1_b.gev_p1_setics(x, t, ics)
-    th = cp_utils.ru(cp_gev_p1_b.gev_p1_logf, x=x, t=t, n=n, d=4, init=ics)
-    theta_samples = th['sim_vals']
+    t = Ru(cp_gev_p1_b.gev_p1_logf, x=x, args=t, d=4, ics=ics, take_exp=True, vectorise=True)
+    theta_samples = t.rvs(n=n)
     
     # decentering
     theta_samples[:,0] = theta_samples[:,0] - theta_samples[:,1] * meant
 
     return {'theta_samples': theta_samples}
-

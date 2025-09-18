@@ -132,15 +132,16 @@ def gev_p12_predictordata(predictordata, x, t1, t2, t01, t02, params):
     
     return {'predictedparameter': predictedparameter, 'adjustedx': adjustedx}
 
-def gev_p12_logf(params, x, t1, t2):
+def gev_p12_logf(params, x, t):
     """
     Logf for RUST
     
     Parameters:
     params : array-like
     x : array-like
-    t1 : array-like
-    t2 : array-like
+    args: dict
+        't1': array-like
+        't2': array-like
     
     Returns:
     float : Log likelihood value
@@ -159,8 +160,8 @@ def gev_p12_logf(params, x, t1, t2):
     #     sigma=exp(sc1+sc2*t2)
     # }
     
-    mu = a + b * t1
-    sigma = np.exp(sc1 + sc2 * t2)
+    mu = a + b * t['t1']
+    sigma = np.exp(sc1 + sc2 * t['t2'])
     
     # Calculate log PDF using scipy genextreme (note: xi -> -xi conversion)
     logf = np.sum(stats.genextreme.logpdf(x, c=-sh, loc=mu, scale=sigma))

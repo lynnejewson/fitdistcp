@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 def format_data_a(actual_p_ml, actual_p_cp, p):
@@ -78,3 +79,89 @@ def format_data_i(actual_p_ml, actual_p_cp, p):
             'title': '(h) PCP vs NP', 'benchmark':{'x': x_range, 'y': x_range}, 'limits': {'x': x_range, 'y': x_range}}
 
 
+
+###################################################################################
+
+
+formats = {
+    'unformatted': format_data_a,
+    'b': format_data_b,
+    'd': format_data_d,
+    'tail': format_data_h,
+    'i': format_data_i
+}
+
+
+
+def single_plot(data, ax):
+    # data is the dictionary returned by my format_data routines
+    ax.plot(data['x'], data['y_ml'],  label='ML', color='red', linewidth=1)
+    ax.plot(data['x'], data['y_cp'],  label='CP', color='blue')
+    ax.plot(data['benchmark']['x'], data['benchmark']['y'], color='black', label='Benchmark')
+    ax.set_xlim(data['limits']['x'])
+    ax.set_ylim(data['limits']['y'])
+    ax.set_xlabel(data['xlabel'])
+    ax.set_ylabel(data['ylabel'])
+    ax.set_title(data['title'])
+    ax.legend()                         # crowds the graphs somewhat
+
+
+def plot_all(result):
+    '''
+    Passed output from a reltest, makes a plot with 5 formats comparing the ML and CP methods (using matplotlib).
+
+    Parameters
+    ----------
+    result: Dict
+        output from reltests (with keys actual_p_ml, actaul_p_cp, and p)
+    '''
+    actual_p_ml = result['actual_p_ml']
+    actual_p_cp = result['actual_p_cp']
+    p = result['p']
+
+    data = [
+        format_data_a(actual_p_ml, actual_p_cp, p), 
+        format_data_b(actual_p_ml, actual_p_cp, p), 
+        format_data_d(actual_p_ml, actual_p_cp, p), 
+        format_data_h(actual_p_ml, actual_p_cp, p), 
+        format_data_i(actual_p_ml, actual_p_cp, p)
+        ]
+    fig, axs = plt.subplots(3,2)
+    single_plot(data[0], axs[0,0])
+    single_plot(data[1], axs[0,1])
+    single_plot(data[2], axs[1,0])
+    single_plot(data[3], axs[1,1])
+    single_plot(data[4], axs[2,0])
+    fig.delaxes(axs[2,1])
+    fig.tight_layout()
+    plt.show()
+
+
+
+def plot(result, key='tail'):
+    '''
+    Passed output from a reltest, makes a plot comparing the ML and CP methods (using matplotlib).
+    Possible keys: 'unformatted', 'b', 'd', 'tail', 'i', 'all'.
+    'tail' demonstrates tail probabilities the best.
+
+    Parameters
+    ----------
+    result: Dict
+        output from reltests (with keys actual_p_ml, actaul_p_cp, and p)
+    key: str
+        Determines how the reltest output should be formatted.
+    '''
+
+    if key not in ['unformatted', 'b', 'd', 'i', 'tail', 'all']:
+        raise Exception('invalid reltest plot_option: must be one of unformatted, b, d, i, tail, all')
+
+    if key=='all':
+        plot_all(result)
+    else:
+        data = formats[key](
+            result['actual_p_ml'], 
+            result['actual_p_cp'], 
+            result['p'])
+        fig, axs = plt.subplots(1, 1)
+        single_plot(data, axs)
+        plt.show()

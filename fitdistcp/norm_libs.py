@@ -45,24 +45,14 @@ def norm_waic(waicscores, x, v1hat, v2hat):
 
 
 def norm_logf(params, x):
-    """
-    Logf for RUST
-    
-    Parameters
-    ----------
-    params : array_like
-        Parameter vector [mean, std_dev]
-    x : array_like
-        Data values
-        
-    Returns
-    -------
-    float
-        Log-likelihood value
-    """
-    m = params[0]
-    s = np.maximum(params[1], sys.float_info.epsilon)
-    logf = np.sum(stats.norm.logpdf(x, loc=m, scale=s)) - np.log(s)
+    """Logf for RUST"""
+    x = np.asarray(x)
+    m = params[:,0]
+    s = np.maximum(params[:,1], sys.float_info.epsilon)
+    x_scaled = (x[:,None]-m)/s
+    logpdf = - 0.5*np.sum(x_scaled**2, axis=0) - len(x)*(np.log(s) + 0.5*np.log(2*np.pi))
+    logf = logpdf - np.log(s)
+    #logf = np.sum(stats.norm.logpdf(x, loc=m, scale=s)) - np.log(s)
     return logf
 
 

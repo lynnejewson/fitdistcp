@@ -1,0 +1,23 @@
+gev conclusions
+
+- can analyse the revdbayes? package for gev and gpd stuff
+- understand the region in which gev=0, and so the invalid parameter space
+- then look into what this stuff is: the 3 different methods for finding parameters, the cases in which these apply, and standard errors
+
+questions:
+- I assumed there was an analytic expression for the MLEs of the GEV but it comes down to just maximising the f.
+- Is there a reason this is easier than maximising the posterior? the posterior is just 1/ sh * sc.
+- Because it is indeed easier and it works where the posterior doesn't work.
+
+
+what now???????
+things that could be done
+- a general investigation into speeding up the code
+    Either caching or numba jit compiling could speed stuff up, but it doesn't seem that easy with my functions.
+- check very thoroughly for errors
+- improve my ICS for each distribution
+- implement pwm for each distribution
+- box-cox for all regions
+- introduce user-defined transformations and implement with the GEV (SEs)
+
+- c++ code

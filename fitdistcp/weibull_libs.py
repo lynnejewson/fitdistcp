@@ -50,42 +50,21 @@ def weibull_waic(waicscores, x, v1hat, v2hat, lddi, lddd, lambdad):
     return {'waic1': waic1, 'waic2': waic2}
 
 def weibull_logf(params, x):
-    """
-    Logf for RUST
-    
-    Parameters
-    ----------
-    params : array_like
-        Parameters [shape, scale]
-    x : array_like
-        Data values
-        
-    Returns
-    -------
-    float
-        Log-likelihood value with priors
-    """
-    sh = np.maximum(np.minimum(20, params[0]), np.sqrt(sys.float_info.epsilon))
-    sc = np.maximum(params[1], np.sqrt(sys.float_info.epsilon))
-    logf = np.sum(scipy.stats.weibull_min.logpdf(x, c=sh, scale=sc)) - np.log(sh) - np.log(sc)
+    """Logf for RUST"""
+    x = np.asarray(x)
+    sh = np.maximum(np.minimum(20, params[:,0]), np.sqrt(sys.float_info.epsilon))
+    sc = np.maximum(params[:,1], np.sqrt(sys.float_info.epsilon))
+    x_Scaled = x[:,None]/sc
+    logpdf = len(x)*(np.log(sh/sc)) + (sh-1)*np.sum(np.log(x_Scaled), axis=0) -np.sum((x_Scaled)**sh, axis=0)
+    logf = logpdf - np.log(sh) - np.log(sc)
+    #logf = np.sum(scipy.stats.weibull_min.logpdf(x, c=sh, scale=sc)) - np.log(sh) - np.log(sc)
     return logf
+
+
 
 def weibull_loglik(vv, x):
     """
-    log-likelihood function
-    
-    Parameters
-    ----------
-    vv : array_like
-        Parameters [shape, scale]
-    x : array_like
-        Data values
-        
-    Returns
-    -------
-    float
-        Log-likelihood value
-    """
+    log-likelihood function"""
     n = len(x)
     shape_param = np.maximum(np.minimum(20, vv[0]), np.sqrt(sys.float_info.epsilon))
     scale_param = np.maximum(vv[1], np.sqrt(sys.float_info.epsilon))

@@ -1,8 +1,11 @@
 import numpy as np
 import scipy.stats
+from scipy.optimize import minimize
 
 import utils as cp_utils
 import lnorm_libs
+from ru import Ru
+import reltest_libs
 
 
 def ppf(x, p=np.arange(0.1, 1.0, 0.1), means=False, waicscores=False, logscores=False, rust=False, nrust=100000, debug=False):
@@ -154,7 +157,7 @@ def rvs(n, x, rust=False, mlcp=True, debug=False):
         cp_deviates = q['cp_quantiles']
     
     if rust:
-        th = tlnorm_cp(n, x)['theta_samples']
+        th = tsf(n, x)['theta_samples']
         ru_deviates = np.zeros(n)
         for i in range(n):
             ru_deviates[i] = scipy.stats.lognorm.rvs(s=th[i, 1], scale=np.exp(th[i, 0]), size=1)[0]
@@ -207,7 +210,7 @@ def pdf(x, y=None, rust=False, nrust=1000, debug=False):
     ru_pdf = "rust not selected"
     
     if rust:
-        th = tlnorm_cp(nrust, x)['theta_samples']
+        th = tsf(nrust, x)['theta_samples']
         ru_pdf = np.zeros(len(y))
         for ir in range(nrust):
             ru_pdf = ru_pdf + scipy.stats.lognorm.pdf(y, s=th[ir, 1], scale=np.exp(th[ir, 0]))
@@ -261,7 +264,7 @@ def cdf(x, y=None, rust=False, nrust=1000, debug=False):
     ru_cdf = "rust not selected"
     
     if rust:
-        th = tlnorm_cp(nrust, x)['theta_samples']
+        th = tsf(nrust, x)['theta_samples']
         ru_cdf = np.zeros(len(y))
         for ir in range(nrust):
             ru_cdf = ru_cdf + scipy.stats.lognorm.cdf(y, s=th[ir, 1], scale=np.exp(th[ir, 0]))
@@ -278,9 +281,9 @@ def cdf(x, y=None, rust=False, nrust=1000, debug=False):
     return op
 
 
-def tlnorm_cp(n, x, debug=False):
+def tsf(n, x):
     """
-    Not yet implemented: Theta sampling for log-normal with calibrating prior
+    Theta sampling for log-normal with calibrating prior
     
     Parameters
     ----------
@@ -288,13 +291,11 @@ def tlnorm_cp(n, x, debug=False):
         Number of samples to generate
     x : array-like
         Training data values
-    debug : bool
-        Debug flag (default False)
         
     Returns
     -------
-    dict
-        Dictionary containing theta samples
+    array of float
+        Theta samples.
     """
     x = cp_utils.to_array(x)
     assert np.all(np.isfinite(x)) and np.all(~np.isnan(x)), "x must be finite and not NaN"
@@ -302,9 +303,77 @@ def tlnorm_cp(n, x, debug=False):
     
     # Initialize with method of moments estimates
     log_x = np.log(x)
-    init_meanlog = np.mean(log_x)
-    init_sdlog = np.std(log_x, ddof=1)
+
+    t = Ru(lnorm_libs.lnorm_logf, x=x, d=2, ics=[np.mean(log_x), np.std(log_x, ddof=1)])
     
-    t = cp_utils.ru(lnorm_libs.lnorm_logf, x=x, n=n, d=2, init=[init_meanlog, init_sdlog])
+    return {'theta_samples': t.rvs(n=n)}
+
+
+def reltest(plot=True, ntrials=50, nx=30, p=0.0001*np.asarray(range(1,10000)), loc=0, sigma=1, plot_option='tail'):
+    '''
+    Reliability test.
+
+    Parameters
+    ----------
+    plot: bool (default = True)
+        Create a plot of the results immediately.
+    desired_p : array_like
+        Probabilities at which to calculate quantiles.
+    ntrials : int
+        Number of trials to average over.
+    nx : int
+        Number of samples per trial.
+    loc: float (default = 0)
+        Loc parameter to test (equal to the mean of X such that exp(X)=Y, Y is our lognorm, X normal)
+    sigma: float (default = 1)
+        Scale parameter to test (equal to the SD of X such that exp(X)=Y, Y is our lognorm, X normal)
+    plot_option: str (default='tail')
+        For use when plot=True, determines which graph to output.
+        Options are 'unformatted', 'b', 'd', 'tail', 'i', 'all'.
+        'tail' demonstrates tail probabilities the best.
     
-    return {'theta_samples': t['sim_vals']}
+    Returns
+    -------
+    dict
+        Dictionary with keys:
+            'actual_p_ml' : array_like
+                Achieved probabilities using ML quantiles.
+            'actual_p_cp' : array_like
+                Achieved probabilities using CP quantiles.
+
+    Each trial generates nx samples and calculates quantiles using the two methods.
+    The difference between the methods is clearest when nx is in the range of 20-60.
+    Increasing ntrials reduces the effect of random variations in the trials (100 is sufficient for many purposes).
+    '''
+
+    # reparameterise
+    s = sigma
+    scale = np.exp(loc)
+
+    p_actual_ml_total = np.zeros(len(p))
+    p_actual_cp_total = np.zeros(len(p))
+
+    for i in range(ntrials):
+        x = scipy.stats.lognorm.rvs(s, scale=scale, size=nx)
+
+        info_cp = ppf(x, p)
+        q_cp = info_cp['cp_quantiles']
+        q_ml = info_cp['ml_quantiles']
+
+        # feed back in for the actual probability
+        p_actual_ml_total += scipy.stats.lognorm.cdf(q_ml, s, scale=scale)
+        p_actual_cp_total += scipy.stats.lognorm.cdf(q_cp, s, scale=scale)
+
+    p_actual_ml_avg = p_actual_ml_total / ntrials
+    p_actual_cp_avg = p_actual_cp_total / ntrials
+
+    result = {
+        'actual_p_ml' : np.ndarray.tolist(p_actual_ml_avg), 
+        'actual_p_cp': np.ndarray.tolist(p_actual_cp_avg), 
+        'p': np.ndarray.tolist(p)
+        }
+    
+    if plot:
+        reltest_libs.plot(result, plot_option)
+
+    return result

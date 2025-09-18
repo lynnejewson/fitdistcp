@@ -36,13 +36,26 @@ def gev_waic(waicscores, x, v1hat, v2hat, v3hat, lddi, lddd, lambdad):
 
 
 def gev_logf(params, x):
-    #Returns   (float) Log likelihood value
-    mu = params[0]
-    sc = np.maximum(params[1], np.finfo(float).eps)
-    sh = params[2]
+    x = np.asarray(x)
+    mu = params[:, 0]
+    sc = np.maximum(params[:, 1], np.finfo(float).eps)
+    sh = params[:, 2]
+    x_b = x[:, None]
+    t = (x_b - mu) / sc
+    arg = 1 + sh * t
+    logpdf = np.full(t.shape, -np.inf)
     
-    logf = np.sum(genextreme.logpdf(x, c=-sh, loc=mu, scale=sc)) - np.log(sc)
+    gumbel_mask = (sh == 0)
+    logpdf = np.where(gumbel_mask, -np.log(sc) - t - np.exp(-t), logpdf)
+    
+    valid_mask = np.logical_and(arg > 0, sh != 0)
+    logpdf = np.where(valid_mask, 
+                      -np.log(sc) - (1 + 1/sh) * np.log(arg) - (arg ** (-1/sh)), 
+                      logpdf)
+    
+    logf = np.sum(logpdf, axis=0) - np.log(sc)
     return logf
+
 
 
 def gev_setics(x, ics):

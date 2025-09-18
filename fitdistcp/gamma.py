@@ -6,6 +6,8 @@ import utils as cp_utils
 import evaluate_dmgs_equation as cp_dmgs
 import gamma_libs
 import gamma_derivs
+from ru import Ru
+import reltest_libs
 
 
 def ppf(x, p=None, fd1=0.01, fd2=0.01, means=False, waicscores=False, 
@@ -252,7 +254,7 @@ def rvs(n, x, fd1=0.01, fd2=0.01, rust=False, mlcp=True, debug=False, aderivs=Tr
         cp_deviates = q['cp_quantiles']
     
     if rust:
-        th = tgamma_cp(n, x)['theta_samples']
+        th = tsf(n, x)['theta_samples']
         ru_deviates = np.zeros(n)
         for i in range(n):
             ru_deviates[i] = np.random.gamma(shape=th[i,0], scale=th[i,1])
@@ -313,7 +315,7 @@ def pdf(x, y=None, fd1=0.01, fd2=0.01, rust=False, nrust=1000, debug=False, ader
     ru_pdf = "rust not selected"
     
     if rust:
-        th = tgamma_cp(nrust, x)['theta_samples']
+        th = tsf(nrust, x)['theta_samples']
         ru_pdf = np.zeros(len(y))
         for ir in range(nrust):
             ru_pdf = ru_pdf + stats.gamma.pdf(y, a=th[ir,0], scale=th[ir,1])
@@ -374,7 +376,7 @@ def cdf(x, y=None, fd1=0.01, fd2=0.01, rust=False, nrust=1000, debug=False, ader
     ru_cdf = "rust not selected"
     
     if rust:
-        th = tgamma_cp(nrust, x)['theta_samples']
+        th = tsf(nrust, x)['theta_samples']
         ru_cdf = np.zeros(len(y))
         for ir in range(nrust):
             ru_cdf = ru_cdf + stats.gamma.cdf(y, a=th[ir,0], scale=th[ir,1])
@@ -390,9 +392,9 @@ def cdf(x, y=None, fd1=0.01, fd2=0.01, rust=False, nrust=1000, debug=False, ader
     return op
 
 
-def tgamma_cp(n, x, fd1=0.01, fd2=0.01, debug=False):
+def tsf(n, x):
     """
-    Not yet implemented: Theta sampling for Gamma Distribution with Calibrating Prior
+    Theta sampling for Gamma Distribution with Calibrating Prior
     
     Parameters
     ----------
@@ -400,24 +402,90 @@ def tgamma_cp(n, x, fd1=0.01, fd2=0.01, debug=False):
         Number of theta samples to generate
     x : array-like
         Training data values
-    fd1 : float
-        Step size for v1 finite differences (default 0.01)
-    fd2 : float
-        Step size for v2 finite differences (default 0.01)
-    debug : bool
-        Debug flag (default False)
         
     Returns
     -------
-    dict
-        Dictionary with theta_samples
+    array of float
+        Array of theta_samples
     """
     
-    x = np.array(x)
+    x = cp_utils.to_array(x)
     assert np.all(np.isfinite(x)), "x must be finite"
     assert np.all(~np.isnan(x)), "x must not contain NaN"
     assert np.all(x >= 0), "x must be >= 0"
+
+    ml_params = optimize.minimize(lambda params: -gamma_libs.gamma_loglik(params, x), 
+                          x0=[1, 1], method='BFGS').x
+
+    # ics shape, scale
+    t = Ru(gamma_libs.gamma_logf, x=x, d=2, ics=ml_params)
+    if t.mode[0] < 1:
+        print('Shape parameter mode < 1. May cause numerical issues.')
     
-    t = cp_utils.ru(gamma_libs.gamma_logf, x=x, n=n, d=2, init=np.array([1, 1]))
+    return {'theta_samples': t.rvs(n=n)}
+
+
+def reltest(plot=True, ntrials=50, nx=30, p=0.0001*np.asarray(range(1,10000)), a=2, scale=1, plot_option='tail'):
+    '''
+    Reliability test.
+
+    Parameters
+    ----------
+    plot: bool (default = True)
+        Create a plot of the results immediately.
+    desired_p : array_like
+        Probabilities at which to calculate quantiles.
+    ntrials : int
+        Number of trials to average over.
+    nx : int
+        Number of samples per trial.
+    a: float (default = 1)
+        Scale parameter to test.
+    scale: float (default = 1)
+        Scale parameter to test.
+    plot_option: str (default='tail')
+        For use when plot=True, determines which graph to output.
+        Options are 'unformatted', 'b', 'd', 'tail', 'i', 'all'.
+        'tail' demonstrates tail probabilities the best.
     
-    return {'theta_samples': t['sim_vals']}
+    Returns
+    -------
+    dict
+        Dictionary with keys:
+            'actual_p_ml' : array_like
+                Achieved probabilities using ML quantiles.
+            'actual_p_cp' : array_like
+                Achieved probabilities using CP quantiles.
+
+    Each trial generates nx samples and calculates quantiles using the two methods.
+    The difference between the methods is clearest when nx is in the range of 20-60.
+    Increasing ntrials reduces the effect of random variations in the trials (100 is sufficient for many purposes).
+    '''
+
+    p_actual_ml_total = np.zeros(len(p))
+    p_actual_cp_total = np.zeros(len(p))
+
+    for i in range(ntrials):
+        x = stats.gamma.rvs(a, scale=scale, size=nx)
+
+        info_cp = ppf(x, p)
+        q_cp = info_cp['cp_quantiles']
+        q_ml = info_cp['ml_quantiles']
+
+        # feed back in for the actual probability
+        p_actual_ml_total += stats.gamma.cdf(q_ml, a, scale=scale)
+        p_actual_cp_total += stats.gamma.cdf(q_cp, a, scale=scale)
+
+    p_actual_ml_avg = p_actual_ml_total / ntrials
+    p_actual_cp_avg = p_actual_cp_total / ntrials
+
+    result = {
+        'actual_p_ml' : np.ndarray.tolist(p_actual_ml_avg), 
+        'actual_p_cp': np.ndarray.tolist(p_actual_cp_avg), 
+        'p': np.ndarray.tolist(p)
+        }
+    
+    if plot:
+        reltest_libs.plot(result, plot_option)
+
+    return result

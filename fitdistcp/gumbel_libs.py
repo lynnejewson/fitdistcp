@@ -24,9 +24,13 @@ def gumbel_waic(waicscores, x, v1hat, v2hat, lddi, lddd, lambdad):
     return {'waic1': waic1, 'waic2': waic2}
 
 def gumbel_logf(params, x):
-    m = params[0]
-    s = np.maximum(params[1], sys.float_info.epsilon)
-    logf = np.sum(scipy.stats.gumbel_r.logpdf(x, loc=m, scale=s)) - np.log(s)
+    x = np.asarray(x)
+    m = params[:,0]
+    s = np.maximum(params[:,1], sys.float_info.epsilon)
+    x_rel = (x[:,None]-m)/s
+    logpdf = -np.sum(x_rel, axis=0) - np.sum(np.exp(-x_rel), axis=0) - len(x)*np.log(s)
+    #logf = np.sum(scipy.stats.gumbel_r.logpdf(x, loc=m, scale=s)) - np.log(s)
+    logf = logpdf - np.log(s)
     return logf
 
 def gumbel_loglik(vv, x):

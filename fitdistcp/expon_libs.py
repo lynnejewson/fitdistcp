@@ -9,8 +9,6 @@ import utils as cp_utils
 def exp_waic(waicscores, x, v1hat):
     """
     Waicscores
-    @inherit manwaic return
-    @inheritParams manf
     """
     if waicscores:
         f1f = exp_derivs.exp_f1fa(x, v1hat)
@@ -33,18 +31,14 @@ def exp_waic(waicscores, x, v1hat):
 def exp_logf(params, x):
     """
     Logf for RUST
-    @inherit manlogf return
-    @inheritParams manf
     """
-    l = np.maximum(params[0], sys.float_info.epsilon)
-    logf = np.sum(scipy.stats.expon.logpdf(x, scale=1/l)) - np.log(l)
+    rate = np.maximum(params[:, 0], sys.float_info.epsilon)
+    logf = (len(x)-1)*np.log(rate) - rate*np.sum(x)
     return logf
 
 def exp_logscores(logscores, x):
     """
     Log scores for MLE and RHP predictions calculated using leave-one-out
-    @inherit manlogscores return
-    @inheritParams manf
     """
     if logscores:
         # I could put the logs inside dexpsub, but I'd have to actually calculate the log for the rhp case
@@ -71,8 +65,6 @@ def exp_logscores(logscores, x):
 def dexpsub(x, y):
     """
     Densities from MLE and RHP
-    @inherit mandsub return
-    @inheritParams manf
     """
     nx = len(x)
     
@@ -101,4 +93,3 @@ def dexpsub(x, y):
         'ml_cdf': ml_cdf,
         'rh_cdf': rh_cdf
     }
-

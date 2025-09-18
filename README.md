@@ -1,17 +1,12 @@
 # fitdistcp
 
-fitdistcp is a free Python package for fitting statistical models using calibrating priors, with the goal of making reliable predictions. The functions provided for each distribution (GEV, GEV with 1 predictor, and GPD) accept sample data x as an argument and return a dict of the relevant results, such as quantiles, cdf, pdf, and maximum likelihood parameters. Install using >pip install fitdistcp.
+fitdistcp is a free Python package for fitting statistical models using calibrating priors, with the goal of making reliable predictions. Install using >pip install fitdistcp.
 
 fitdistcp implements the method developed in *Reducing Reliability Bias in Assessments of Extreme Weather Risk using Calibrating Priors*, S. Jewson, T. Sweeting and L. Jewson (2024): https://doi.org/10.5194/ascmo-11-1-2025.
 
 More information and examples are available at https://www.fitdistcp.info, including the equivalent (more comprehensive) R package.
 
 Development of this package was funded by the Lighthill Risk Network: https://lighthillrisknetwork.org.
-
-
-### Tests
-- The cdf and pdf can be estimated for a set of data, using the ML (Maximum Likelihood) or CP (Calibrating Priors) method, and plotted.
-- Reliability tests are provided. A reliability test involves generating a sample from a known distribution, and calculating the quantiles using the ML, or CP method. The actual quantiles can be plotted against the estimated quantiles, in various different ways, to judge the reliability of the method.
 
 
 ### Example: Fitting a GEV distribution
@@ -31,3 +26,22 @@ plt.plot(q['cp_quantiles'],p,color='red', label='CP')       # plot the quantiles
 plt.legend()
 plt.show()
 ```
+
+
+### Models
+The following models are currently supported. Let us know if you have any suggestions for other models to include.
+- expon: Exponential distribution
+- gamma: Gamma distribution
+- genextreme: Generalised Extreme Value (GEV) distribution
+- genextreme_p1 & genextreme_p12: Generalised Extreme Value (GEV) distribution, with 1 predictor, 2 predictors
+- genpareto: Generalised Pareto distribution
+- gumbel: Gumbel distribution
+- lnorm: Lognormal distribution
+- norm:	Normal distribution
+- weibull:	Weibull distribution
+
+
+### Methods
+Four methods are provided for each model: ppf(x) (quantiles, 'percentage point function'), rvs(n, x) (random variates), pdf(x) and cdf(x), where x is the data to fit.
+To use, e.g. ppf for the normal distribution, import fitdistcp.norm and call fitdistcp.norm.ppf(x).
+To test the methods use e.g. fitdistcp.norm.reltest(). Reltests (reliability tests) are used to test the reliability of quantile calculations for making predictions.

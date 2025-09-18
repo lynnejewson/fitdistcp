@@ -1,8 +1,11 @@
 import numpy as np
 import scipy.stats as stats
+from scipy.optimize import minimize
 
 import norm_libs
 import utils as cp_utils
+from ru import Ru
+import reltest_libs
 
 
 def ppf(x, p=np.arange(0.1, 1.0, 0.1), means=False, waicscores=False, 
@@ -170,7 +173,7 @@ def rvs(n, x, rust=False, mlcp=True, debug=False):
         cp_deviates = q['cp_quantiles']
     
     if rust:
-        th = tnorm_cp(n, x)['theta_samples']
+        th = tsf(n, x)['theta_samples']
         ru_deviates = np.zeros(n)
         for i in range(n):
             ru_deviates[i] = np.random.normal(loc=th[i, 0], scale=th[i, 1])
@@ -217,7 +220,7 @@ def pdf(x, y=None, rust=False, nrust=1000, debug=False):
     dd = norm_libs.dnormsub(x=x, y=y)
     ru_pdf = "rust not selected"
     if rust:
-        th = tnorm_cp(nrust, x)['theta_samples']
+        th = tsf(nrust, x)['theta_samples']
         ru_pdf = np.zeros(len(y))
         for ir in range(nrust):
             ru_pdf = ru_pdf + stats.norm.pdf(y, loc=th[ir, 0], scale=th[ir, 1])
@@ -265,7 +268,7 @@ def cdf(x, y=None, rust=False, nrust=1000, debug=False):
     dd = norm_libs.dnormsub(x=x, y=y)
     ru_cdf = "rust not selected"
     if rust:
-        th = tnorm_cp(nrust, x)['theta_samples']
+        th = tsf(nrust, x)['theta_samples']
         ru_cdf = np.zeros(len(y))
         for ir in range(nrust):
             ru_cdf = ru_cdf + stats.norm.cdf(y, loc=th[ir, 0], scale=th[ir, 1])
@@ -280,9 +283,9 @@ def cdf(x, y=None, rust=False, nrust=1000, debug=False):
     }
     return op
 
-def tnorm_cp(n, x, debug=False):
+def tsf(n, x):
     """
-    Not yet implemented: Theta sampling for normal distribution with calibrating prior
+    Theta sampling for normal distribution with calibrating prior
     
     Parameters
     ----------
@@ -290,18 +293,81 @@ def tnorm_cp(n, x, debug=False):
         Number of samples
     x : array-like
         Training data
-    debug : bool, default False
-        Debug flag
         
     Returns
     -------
-    dict
-        Dictionary containing theta samples
+    array of float
+        Theta samples.
     """
-    # stopifnot(is.finite(n),!is.na(n),is.finite(x),!is.na(x))
     x = cp_utils.to_array(x)
     assert np.all(np.isfinite(x)) and not np.any(np.isnan(x))
     
-    t = cp_utils.ru(norm_libs.norm_logf, x=x, n=n, d=2, init=[np.mean(x), np.std(x)])
+    t = Ru(norm_libs.norm_logf, x=x, d=2, ics=[np.mean(x), np.std(x)])
     
-    return {'theta_samples': t['sim_vals']}
+    return {'theta_samples': t.rvs(n=n)}
+
+
+def reltest(plot=True, ntrials=50, nx=30, p=0.0001*np.asarray(range(1,10000)), loc=0, scale=1, plot_option='tail'):
+    '''
+    Reliability test.
+
+    Parameters
+    ----------
+    plot: bool (default = True)
+        Create a plot of the results immediately.
+    desired_p : array_like
+        Probabilities at which to calculate quantiles.
+    ntrials : int
+        Number of trials to average over.
+    nx : int
+        Number of samples per trial.
+    loc: float (default = 0)
+        Loc parameter to test.
+    scale: float (default = 1)
+        Scale parameter to test.
+    plot_option: str (default='tail')
+        For use when plot=True, determines which graph to output.
+        Options are 'unformatted', 'b', 'd', 'tail', 'i', 'all'.
+        'tail' demonstrates tail probabilities the best.
+    
+    Returns
+    -------
+    dict
+        Dictionary with keys:
+            'actual_p_ml' : array_like
+                Achieved probabilities using ML quantiles.
+            'actual_p_cp' : array_like
+                Achieved probabilities using CP quantiles.
+
+    Each trial generates nx samples and calculates quantiles using the two methods.
+    The difference between the methods is clearest when nx is in the range of 20-60.
+    Increasing ntrials reduces the effect of random variations in the trials (100 is sufficient for many purposes).
+    '''
+
+    p_actual_ml_total = np.zeros(len(p))
+    p_actual_cp_total = np.zeros(len(p))
+
+    for i in range(ntrials):
+        x = stats.norm.rvs(loc=loc, scale=scale, size=nx)
+
+        info_cp = ppf(x, p)
+        q_cp = info_cp['cp_quantiles']
+        q_ml = info_cp['ml_quantiles']
+
+        # feed back in for the actual probability
+        p_actual_ml_total += stats.norm.cdf(q_ml, loc=loc, scale=scale)
+        p_actual_cp_total += stats.norm.cdf(q_cp, loc=loc, scale=scale)
+
+    p_actual_ml_avg = p_actual_ml_total / ntrials
+    p_actual_cp_avg = p_actual_cp_total / ntrials
+
+    result = {
+        'actual_p_ml' : np.ndarray.tolist(p_actual_ml_avg), 
+        'actual_p_cp': np.ndarray.tolist(p_actual_cp_avg), 
+        'p': np.ndarray.tolist(p)
+        }
+    
+    if plot:
+        reltest_libs.plot(result, plot_option)
+
+    return result

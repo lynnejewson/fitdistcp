@@ -1,0 +1,31 @@
+8th
+- GEV I will do last, in the hope that I can iron out the issues using my contours for 2D
+
+GAMMA:
+Troubling.
+R's RUST returns different values depending on the value of rotate.
+rotate = TRUE: slightly different to mine
+rotate = FALSE: same as mine
+The difference is largest for dataset 1.
+The odd thing is that my calculated rotation is the identity.
+Ask Paul about this.
+For now, I am going to assume that my gammas are correct.
+
+
+checklist
+expon - Yes.
+norm - Yes, except dataset 2 which has very small variance (mine crashes.) Check this again.
+lnorm - Yes
+gamma - disturbing things happening with the R version. may work for me.
+gumbel - Yes
+weibull - yes (works as long as the maximum is found, which is not always. I am hard-coding ics=[1,1] for weibull, because this seems to work.)
+genpareto - yes
+genextreme: yes
+
+double-checklist
+gamma
+
+then what?
+- I figured that I could test that my values are correct for gamma by creating larger and larger samples but fmax starts failing
+- presumably as the numerical value is very small
+- perhaps fix by taking logf instead, as Paul does

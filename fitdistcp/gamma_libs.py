@@ -1,4 +1,5 @@
 import numpy as np
+import scipy
 import scipy.stats as stats
 import scipy.optimize as optimize
 import scipy.integrate as integrate
@@ -52,7 +53,7 @@ def gamma_waic(waicscores, x, v1hat, fd1, v2hat, fd2, lddi, lddd, lambdad, aderi
         else:
             f2f = gamma_f2f(x, v1hat, fd1, v2hat, fd2)
         
-        fhatx = stats.gamma.pdf(x, a=v1hat, scale=v2hat)
+        fhatx = scipy.stats.gamma.pdf(x, a=v1hat, scale=v2hat)
         waic = cp_utils.make_waic(x, fhatx, lddi, lddd, f1f, lambdad, f2f, dim=2)
         waic1 = waic['waic1']
         waic2 = waic['waic2']
@@ -63,25 +64,17 @@ def gamma_waic(waicscores, x, v1hat, fd1, v2hat, fd2, lddi, lddd, lambdad, aderi
     return {'waic1': waic1, 'waic2': waic2}
 
 def gamma_logf(params, x):
-    """
-    Logf for RUST
-    
-    Parameters
-    ----------
-    params : array-like
-        Parameters [shape, scale]
-    x : array-like
-        Data values
-        
-    Returns
-    -------
-    float
-        Log-likelihood value
-    """
-    sh = max(params[0], sys.float_info.epsilon)
-    sc = max(params[1], sys.float_info.epsilon)
-    logf = np.sum(stats.gamma.logpdf(x, a=sh, scale=sc)) - np.log(sh) - np.log(sc)
+    """Logf for RUST"""
+    x = np.asarray(x)
+    m = np.maximum(params, sys.float_info.epsilon)
+    sh, sc = m[:,0], m[:,1]
+    x_scaled = x[:,None]/sc
+    logpdf = -len(x)*np.log(scipy.special.gamma(sh) * sc) + (sh-1)*np.sum(np.log(x_scaled), axis=0) - np.sum(x_scaled, axis=0)
+    #logpdf = 1/scipy.special.gamma(sh) * (np.prod(x)/sc)**sh * np.exp(-np.sum(x)/sc)
+    logf = logpdf - np.log(sh) - np.log(sc)
     return logf
+
+
 
 def gamma_loglik(vv, x):
     """

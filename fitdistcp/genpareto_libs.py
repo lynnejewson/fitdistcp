@@ -46,9 +46,17 @@ def gpd_k1_waic(waicscores, x, v1hat, v2hat, kloc, lddi, lddd, lambdad):
 
 def gpd_k1_logf(params, x, kloc):
     """Logf for RUST"""
-    sc = max(params[0], sys.float_info.epsilon)
-    sh = params[1]
-    logf = np.sum(stats.genpareto.logpdf(x, c=sh, loc=kloc, scale=sc)) - np.log(sc)
+    x = np.asarray(x)
+    sc = np.maximum(params[:,0], sys.float_info.epsilon)
+    sh = params[:,1]
+
+    x_b = x[:, None]  # shape (n, 1)
+    sc_b = sc[None, :]  # shape (1, m)
+    sh_b = sh[None, :]  # shape (1, m)
+    z = (x_b - kloc) / sc_b
+    logpdf = np.sum(-np.log(sc_b) - (1 + 1/sh_b) * np.log1p(z * sh_b), axis=0)
+    logf = logpdf - np.log(sc)
+    #logf = np.sum(stats.genpareto.logpdf(x, c=sh, loc=kloc, scale=sc)) - np.log(sc)
     return logf
 
 

@@ -1,8 +1,12 @@
 import numpy as np
 import scipy.stats
+from scipy.optimize import minimize
+from scipy.stats import expon
 
 import expon_libs as exp_libs
 import utils as cp_utils
+from ru import Ru
+import reltest_libs
 
 
 def ppf(x, p=np.arange(0.1, 1.0, 0.1), means=False, waicscores=False, 
@@ -57,7 +61,7 @@ def ppf(x, p=np.arange(0.1, 1.0, 0.1), means=False, waicscores=False,
     sumx = np.sum(x)
     
     # 2 ml param estimate
-    v1hat = nx / sumx
+    v1hat = nx / sumx   # 1/mean = 1/scale = rate = lambda
     ml_params = v1hat
     
     # 3 aic
@@ -157,16 +161,16 @@ def rvs(n, x, rust=False, mlcp=True, debug=False):
     ru_deviates = "rust not selected"
     
     if mlcp:
-        q = ppf(x, np.uniform(size=n))
+        q = ppf(x, np.random.uniform(size=n))
         ml_params = q['ml_params']
         ml_deviates = q['ml_quantiles']
         cp_deviates = q['cp_quantiles']
     
     if rust:
-        th = texp_cp(n, x)['theta_samples']
+        th = tsf(n, x)['theta_samples']
         ru_deviates = np.zeros(n)
         for i in range(n):
-            ru_deviates[i] = np.random.exponential(scale=1/th[i])
+            ru_deviates[i] = np.random.exponential(scale=th[i])
     
     op = {
         'ml_params': ml_params,
@@ -214,10 +218,10 @@ def pdf(x, y=None, rust=False, nrust=1000, debug=False):
     dd = exp_libs.dexpsub(x=x, y=y)
     ru_pdf = "rust not selected"
     if rust:
-        th = texp_cp(nrust, x)['theta_samples']
+        th = tsf(nrust, x)['theta_samples']
         ru_pdf = np.zeros(len(y))
         for ir in range(nrust):
-            ru_pdf += scipy.stats.expon.pdf(y, scale=1/th[ir])
+            ru_pdf += scipy.stats.expon.pdf(y, scale=th[ir])
         ru_pdf = ru_pdf / nrust
     
     op = {
@@ -266,10 +270,10 @@ def cdf(x, y=None, rust=False, nrust=1000, debug=False):
     dd = exp_libs.dexpsub(x=x, y=y)
     ru_cdf = "rust not selected"
     if rust:
-        th = texp_cp(nrust, x)['theta_samples']
+        th = tsf(nrust, x)['theta_samples']
         ru_cdf = np.zeros(len(y))
         for ir in range(nrust):
-            ru_cdf += scipy.stats.expon.cdf(y, scale=1/th[ir])
+            ru_cdf += scipy.stats.expon.cdf(y, scale=th[ir])
         ru_cdf = ru_cdf / nrust
     
     op = {
@@ -281,9 +285,9 @@ def cdf(x, y=None, rust=False, nrust=1000, debug=False):
     }
     return op
 
-def texp_cp(n, x, debug=False):
+def tsf(n, x, debug=False):
     """
-    Not implemented: Theta sampling for exponential calibrating prior
+    Theta sampling for exponential calibrating prior
 
     Parameters
     ----------
@@ -296,15 +300,81 @@ def texp_cp(n, x, debug=False):
 
     Returns
     -------
-    dict
-        Dictionary containing theta samples.
+    array of float
+        Theta samples.
     """
-    raise Exception('texp and rust are not yet implemented; please use DMGS.')
-    # stopifnot(is.finite(n),!is.na(n),is.finite(x),!is.na(x),!x<0)
+    x = cp_utils.to_array(x)
     assert np.all(np.isfinite(x)) and not np.any(np.isnan(x)), "x must be finite and not NaN"
     assert not np.any(x < 0), "x must be non-negative"
     
-    t = ru(exp_libs.exp_logf, x=x, n=n, d=1, init=np.mean(x))
+    ics = [1/np.mean(x)]
+    t = Ru(exp_libs.exp_logf, x=x, d=1, ics=ics)
+    if debug:
+        t.info()
+    print('Parameter sampled is the rate = lambda = 1/mean = 1/scale')
     
-    return {'theta_samples': t['sim_vals']}
+    return {'theta_samples': t.rvs(n=n)}
 
+
+def reltest(plot=True, ntrials=100, nx=30, p=0.0001*np.asarray(range(1,10000)), rate=1, plot_option='tail'):
+    '''
+    Reliability test.
+
+    Parameters
+    ----------
+    plot: bool (default = True)
+        Create a plot of the results immediately.
+    desired_p : array_like
+        Probabilities at which to calculate quantiles.
+    ntrials : int
+        Number of trials to average over.
+    nx : int
+        Number of samples per trial.
+    rate: float (default = 1)
+        Scale parameter = lambda = 1/mean.
+    plot_option: str (default='tail')
+        For use when plot=True, determines which graph to output.
+        Options are 'unformatted', 'b', 'd', 'tail', 'i', 'all'.
+        'tail' demonstrates tail probabilities the best.
+    
+    Returns
+    -------
+    dict
+        Dictionary with keys:
+            'actual_p_ml' : array_like
+                Achieved probabilities using ML quantiles.
+            'actual_p_cp' : array_like
+                Achieved probabilities using CP quantiles.
+
+    Each trial generates nx samples and calculates quantiles using the two methods.
+    The difference between the methods is clearest when nx is in the range of 20-60.
+    Increasing ntrials reduces the effect of random variations in the trials (100 is sufficient for many purposes).
+    '''
+
+    p_actual_ml_total = np.zeros(len(p))
+    p_actual_cp_total = np.zeros(len(p))
+
+    for i in range(ntrials):
+        x = expon.rvs(scale=1/rate, size=nx)
+
+        info_cp = ppf(x, p)
+        q_cp = info_cp['cp_quantiles']
+        q_ml = info_cp['ml_quantiles']
+
+        # feed back in for the actual probability
+        p_actual_ml_total += expon.cdf(q_ml, scale=1/rate)
+        p_actual_cp_total += expon.cdf(q_cp, scale=1/rate)
+
+    p_actual_ml_avg = p_actual_ml_total / ntrials
+    p_actual_cp_avg = p_actual_cp_total / ntrials
+
+    result = {
+        'actual_p_ml' : np.ndarray.tolist(p_actual_ml_avg), 
+        'actual_p_cp': np.ndarray.tolist(p_actual_cp_avg), 
+        'p': np.ndarray.tolist(p)
+        }
+
+    if plot:
+        reltest_libs.plot(result, plot_option)
+
+    return result
