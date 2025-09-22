@@ -1,16 +1,16 @@
 import numpy as np
 import scipy.stats
-from scipy.optimize import minimize
 from scipy.stats import expon
+from rusampling import Ru
 
 import expon_libs as exp_libs
 import utils as cp_utils
-from ru import Ru
 import reltest_libs
 
 
-def ppf(x, p=np.arange(0.1, 1.0, 0.1), means=False, waicscores=False, 
-           logscores=False, rust=False, nrust=100000, debug=False):
+def ppf(x, p=np.arange(0.1, 1.0, 0.1), 
+        means=False, waicscores=False, logscores=False, 
+        ru=False, ru_nsamples=100000):
     
     """
     Exponential Distribution Predictions Based on a Calibrating Prior
@@ -27,10 +27,6 @@ def ppf(x, p=np.arange(0.1, 1.0, 0.1), means=False, waicscores=False,
         Whether to compute WAIC scores (default: False).
     logscores : bool, optional
         Whether to compute log scores (default: False).
-    rust : bool, optional
-        Whether to use the "rust" simulation method (default: False).
-    nrust : int, optional
-        Number of simulations for "rust" (default: 100000).
     debug : bool, optional
         If True, print debug information (default: False).
 
@@ -75,15 +71,6 @@ def ppf(x, p=np.arange(0.1, 1.0, 0.1), means=False, waicscores=False,
     expinfmat = nx / (v1hat * v1hat)
     expinfmati = 1 / expinfmat
     standard_errors = np.sqrt(expinfmati)
-    # if(extras){
-    #     expinfmat=nx/(v1hat*v1hat)
-    #     expinfmati=1/expinfmat
-    #     standard_errors=sqrt(expinfmati)
-    # }else{
-    #     expinfmat="extras not selected"
-    #     expinfmati="extras not selected"
-    #     standard_errors="extras not selected"
-    # }
     
     # 5 rh_quantiles (vectorized over alpha)
     rh_quantiles = sumx * ((alpha**(-1/nx)) - 1)
@@ -103,10 +90,10 @@ def ppf(x, p=np.arange(0.1, 1.0, 0.1), means=False, waicscores=False,
     rh_oos_logscore = logscores_result['rh_oos_logscore']
     
     # 9 rust
-    ru_quantiles = "rust not selected"
-    if rust:
-        rustsim = rvs(nrust, x, rust=True, mlcp=False)
-        ru_quantiles = exp_libs.makeq(rustsim['ru_deviates'], p)
+    ru_quantiles = "ru not selected"
+    if ru:
+        rusim = rvs(ru_nsamples, x, ru=True, mlcp=False)
+        ru_quantiles = exp_libs.makeq(rusim['ru_deviates'], p)
     
     # return
     return {
@@ -126,7 +113,7 @@ def ppf(x, p=np.arange(0.1, 1.0, 0.1), means=False, waicscores=False,
         'cp_method': cp_utils.analytic_cpmethod()
     }
 
-def rvs(n, x, rust=False, mlcp=True, debug=False):
+def rvs(n, x, ru=False, mlcp=True):
     """
     Random number generation for exponential calibrating prior
 
@@ -136,8 +123,8 @@ def rvs(n, x, rust=False, mlcp=True, debug=False):
         Number of random variates to generate.
     x : array_like
         Observed data, must be non-negative and finite.
-    rust : bool, optional
-        Whether to use the "rust" simulation method (default: False).
+    ru : bool, optional
+        Whether to use the Ratio Uniforms simulation method (default: False).
     mlcp : bool, optional
         Whether to use ML and calibrating prior (default: True).
     debug : bool, optional
@@ -146,7 +133,7 @@ def rvs(n, x, rust=False, mlcp=True, debug=False):
     Returns
     -------
     dict
-        Dictionary containing ML, calibrating prior, and rust deviates, parameters, and method information.
+        Dictionary containing ML, calibrating prior, and ru deviates, parameters, and method information.
     """
 
     x = cp_utils.to_array(x)
@@ -158,7 +145,7 @@ def rvs(n, x, rust=False, mlcp=True, debug=False):
     ml_params = "mlcp not selected"
     ml_deviates = "mlcp not selected"
     cp_deviates = "mlcp not selected"
-    ru_deviates = "rust not selected"
+    ru_deviates = "ru not selected"
     
     if mlcp:
         q = ppf(x, np.random.uniform(size=n))
@@ -166,7 +153,7 @@ def rvs(n, x, rust=False, mlcp=True, debug=False):
         ml_deviates = q['ml_quantiles']
         cp_deviates = q['cp_quantiles']
     
-    if rust:
+    if ru:
         th = tsf(n, x)['theta_samples']
         ru_deviates = np.zeros(n)
         for i in range(n):
@@ -182,7 +169,7 @@ def rvs(n, x, rust=False, mlcp=True, debug=False):
     
     return op
 
-def pdf(x, y=None, rust=False, nrust=1000, debug=False):
+def pdf(x, y=None, ru=False, ru_nsamples=1000):
     """
     Density function for exponential calibrating prior
 
@@ -192,17 +179,17 @@ def pdf(x, y=None, rust=False, nrust=1000, debug=False):
         Observed data, must be non-negative and finite.
     y : array_like, optional
         Points at which to evaluate the density (default: x).
-    rust : bool, optional
-        Whether to use the "rust" simulation method (default: False).
-    nrust : int, optional
-        Number of simulations for "rust" (default: 1000).
+    ru : bool, optional
+        Whether to use the Ratio Uniforms simulation method (default: False).
+    ru_nsamples : int, optional
+        Number of simulations for Ratio Uniforms (default: 1000).
     debug : bool, optional
         If True, print debug information (default: False).
 
     Returns
     -------
     dict
-        Dictionary containing ML, calibrating prior, and rust densities, parameters, and method information.
+        Dictionary containing ML, calibrating prior, and ru densities, parameters, and method information.
     """
     x = cp_utils.to_array(x)
     if y is None:
@@ -216,13 +203,13 @@ def pdf(x, y=None, rust=False, nrust=1000, debug=False):
     assert not np.any(y < 0), "y must be non-negative"
     
     dd = exp_libs.dexpsub(x=x, y=y)
-    ru_pdf = "rust not selected"
-    if rust:
-        th = tsf(nrust, x)['theta_samples']
+    ru_pdf = "ru not selected"
+    if ru:
+        th = tsf(ru_nsamples, x)['theta_samples']
         ru_pdf = np.zeros(len(y))
-        for ir in range(nrust):
+        for ir in range(ru_nsamples):
             ru_pdf += scipy.stats.expon.pdf(y, scale=th[ir])
-        ru_pdf = ru_pdf / nrust
+        ru_pdf = ru_pdf / ru_nsamples
     
     op = {
         'ml_params': dd['ml_params'],
@@ -233,7 +220,7 @@ def pdf(x, y=None, rust=False, nrust=1000, debug=False):
     }
     return op
 
-def cdf(x, y=None, rust=False, nrust=1000, debug=False):
+def cdf(x, y=None, ru=False, ru_nsamples=1000):
     """
     Cumulative distribution function for exponential calibrating prior
 
@@ -243,17 +230,17 @@ def cdf(x, y=None, rust=False, nrust=1000, debug=False):
         Observed data, must be non-negative and finite.
     y : array_like, optional
         Points at which to evaluate the CDF (default: x).
-    rust : bool, optional
-        Whether to use the "rust" simulation method (default: False).
-    nrust : int, optional
-        Number of simulations for "rust" (default: 1000).
+    ru : bool, optional
+        Whether to use the Ratio Uniforms simulation method (default: False).
+    ru_nsamples : int, optional
+        Number of simulations for Ratio Uniforms (default: 1000).
     debug : bool, optional
         If True, print debug information (default: False).
 
     Returns
     -------
     dict
-        Dictionary containing ML, calibrating prior, and rust CDFs, parameters, and method information.
+        Dictionary containing ML, calibrating prior, and ru CDFs, parameters, and method information.
     """
 
     x = cp_utils.to_array(x)
@@ -268,13 +255,13 @@ def cdf(x, y=None, rust=False, nrust=1000, debug=False):
     assert not np.any(y < 0), "y must be non-negative"
     
     dd = exp_libs.dexpsub(x=x, y=y)
-    ru_cdf = "rust not selected"
-    if rust:
-        th = tsf(nrust, x)['theta_samples']
+    ru_cdf = "ru not selected"
+    if ru:
+        th = tsf(ru_nsamples, x)['theta_samples']
         ru_cdf = np.zeros(len(y))
-        for ir in range(nrust):
+        for ir in range(ru_nsamples):
             ru_cdf += scipy.stats.expon.cdf(y, scale=th[ir])
-        ru_cdf = ru_cdf / nrust
+        ru_cdf = ru_cdf / ru_nsamples
     
     op = {
         'ml_params': dd['ml_params'],

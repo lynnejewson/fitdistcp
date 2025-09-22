@@ -1,17 +1,20 @@
 import numpy as np
 import scipy.stats
 import scipy.optimize
+from rusampling import Ru
 
 import utils as cp_utils
 import evaluate_dmgs_equation as cp_dmgs
 import weibull_libs
 import weibull_derivs
 import reltest_libs
-from ru import Ru
 
 
-def ppf(x, p=np.arange(0.1, 1.0, 0.1), means=False, waicscores=False, 
-                logscores=False, dmgs=True, rust=False, nrust=100000, debug=False):
+
+def ppf(x, p=np.arange(0.1, 1.0, 0.1), 
+        means=False, waicscores=False, logscores=False, 
+        dmgs=True, ru=False, ru_nsamples=100000,
+        debug=False):
     """
     Weibull Distribution Predictions Based on a Calibrating Prior
     
@@ -28,11 +31,11 @@ def ppf(x, p=np.arange(0.1, 1.0, 0.1), means=False, waicscores=False,
     logscores : bool, optional
         Whether to calculate log scores (default False)
     dmgs : bool, optional
-        Whether to use DMGS integration (default True)
-    rust : bool, optional
-        Whether to use RUST sampling (default False)
-    nrust : int, optional
-        Number of RUST samples (default 100000)
+        Whether to use DMGS (asymptotic expansion for the integral) (default True)
+    ru : bool, optional
+        Whether to use Ratio of Uniforms sampling (default False)
+    ru_nsamples : int, optional
+        Number of Ratio of Uniforms samples, i.e. precision of the integral (default 100000)
     debug : bool, optional
         Whether to print debug messages (default False)
         
@@ -56,7 +59,6 @@ def ppf(x, p=np.arange(0.1, 1.0, 0.1), means=False, waicscores=False,
     
     alpha = 1 - p
     nx = len(x)
-    nalpha = len(alpha)
     
     # 2 ml param estimate
     opt = scipy.optimize.minimize(lambda params: -weibull_libs.weibull_loglik(params, x), 
@@ -75,20 +77,20 @@ def ppf(x, p=np.arange(0.1, 1.0, 0.1), means=False, waicscores=False,
     ml_quantiles = scipy.stats.weibull_min.ppf(1-alpha, c=v1hat, scale=v2hat)
     
     # 5 dmgs
-    standard_errors = "dmgs not selected"
-    rh_quantiles = "dmgs not selected"
-    ru_quantiles = "dmgs not selected"
-    waic1 = "dmgs not selected"
-    waic2 = "dmgs not selected"
-    ml_oos_logscore = "dmgs not selected"
-    rh_oos_logscore = "dmgs not selected"
-    cp_oos_logscore = "dmgs not selected"
-    ml_mean = "dmgs not selected"
-    rh_mean = "dmgs not selected"
-    cp_mean = "dmgs not selected"
-    cp_method = "dmgs not selected"
+    standard_errors = "ru not selected"
+    rh_quantiles = "ru not selected"
+    ru_quantiles = "ru not selected"
+    waic1 = "ru not selected"
+    waic2 = "ru not selected"
+    ml_oos_logscore = "ru not selected"
+    rh_oos_logscore = "ru not selected"
+    cp_oos_logscore = "ru not selected"
+    ml_mean = "ru not selected"
+    rh_mean = "ru not selected"
+    cp_mean = "ru not selected"
+    cp_method = "ru not selected"
     
-    if dmgs:
+    if ru:
         # 6 lddi
         ldd = weibull_derivs.weibull_ldda(x, v1hat, v2hat)
         lddi = np.linalg.inv(ldd)
@@ -138,11 +140,11 @@ def ppf(x, p=np.arange(0.1, 1.0, 0.1), means=False, waicscores=False,
         ml_oos_logscore = logscores_result['ml_oos_logscore']
         rh_oos_logscore = logscores_result['rh_oos_logscore']
         
-        # 14 rust
-        ru_quantiles = "rust not selected"
-        if rust:
-            rustsim = rvs(nrust, x, rust=True, mlcp=False)
-            ru_quantiles = cp_utils.makeq(rustsim['ru_deviates'], p)
+        # 14 ru
+        ru_quantiles = "integrate_sampling not selected"
+        if ru:
+            rusim = rvs(ru_nsamples, x, ru=True, mlcp=False)
+            ru_quantiles = cp_utils.makeq(rusim['ru_deviates'], p)
     
     # return
     return {
@@ -162,7 +164,7 @@ def ppf(x, p=np.arange(0.1, 1.0, 0.1), means=False, waicscores=False,
         'cp_method': cp_utils.rhp_dmgs_cpmethod()
     }
 
-def rvs(n, x, rust=False, mlcp=True, debug=False):
+def rvs(n, x, ru=False, mlcp=True, debug=False):
     """
     Random generation for Weibull CP
     
@@ -172,8 +174,8 @@ def rvs(n, x, rust=False, mlcp=True, debug=False):
         Number of samples
     x : array_like
         Data for parameter estimation
-    rust : bool, optional
-        Whether to use RUST sampling (default False)
+    ru : bool, optional
+        Whether to use Ratio of Uniforms sampling (default False)
     mlcp : bool, optional
         Whether to use ML/CP approach (default True)
     debug : bool, optional
@@ -193,7 +195,7 @@ def rvs(n, x, rust=False, mlcp=True, debug=False):
     ml_params = "mlcp not selected"
     ml_deviates = "mlcp not selected"
     cp_deviates = "mlcp not selected"
-    ru_deviates = "rust not selected"
+    ru_deviates = "ru not selected"
     
     if mlcp:
         q = ppf(x, np.random.uniform(0, 1, n))
@@ -201,7 +203,7 @@ def rvs(n, x, rust=False, mlcp=True, debug=False):
         ml_deviates = q['ml_quantiles']
         cp_deviates = q['cp_quantiles']
     
-    if rust:
+    if ru:
         th = tsf(n, x)['theta_samples']
         ru_deviates = np.zeros(n)
         for i in range(n):
@@ -216,7 +218,7 @@ def rvs(n, x, rust=False, mlcp=True, debug=False):
     }
     return op
 
-def pdf(x, y=None, rust=False, nrust=1000, debug=False):
+def pdf(x, y=None, ru=False, ru_nsamples=1000, debug=False):
     """
     Density function for Weibull CP
     
@@ -226,10 +228,10 @@ def pdf(x, y=None, rust=False, nrust=1000, debug=False):
         Data for parameter estimation
     y : array_like, optional
         Points to evaluate density (default same as x)
-    rust : bool, optional
-        Whether to use RUST sampling (default False)
-    nrust : int, optional
-        Number of RUST samples (default 1000)
+    ru : bool, optional
+        Whether to use Ratio of Uniforms sampling (default False)
+    ru_nsamples : int, optional
+        Number of Ratio of Uniforms samples (default 1000)
     debug : bool, optional
         Whether to print debug messages (default False)
         
@@ -251,14 +253,14 @@ def pdf(x, y=None, rust=False, nrust=1000, debug=False):
     assert np.all(y >= 0), "y must be non-negative"
     
     dd = weibull_libs.dweibullsub(x=x, y=y)
-    ru_pdf = "rust not selected"
+    ru_pdf = "ru not selected"
     
-    if rust:
-        th = tsf(nrust, x)['theta_samples']
+    if ru:
+        th = tsf(ru_nsamples, x)['theta_samples']
         ru_pdf = np.zeros(len(y))
-        for ir in range(nrust):
+        for ir in range(ru_nsamples):
             ru_pdf += scipy.stats.weibull_min.pdf(y, c=th[ir, 0], scale=th[ir, 1])
-        ru_pdf = ru_pdf / nrust
+        ru_pdf = ru_pdf / ru_nsamples
     
     op = {
         'ml_params': dd['ml_params'],
@@ -269,7 +271,7 @@ def pdf(x, y=None, rust=False, nrust=1000, debug=False):
     }
     return op
 
-def cdf(x, y=None, rust=False, nrust=1000, debug=False):
+def cdf(x, y=None, ru=False, ru_nsamples=1000, debug=False):
     """
     Distribution function for Weibull CP
     
@@ -279,10 +281,10 @@ def cdf(x, y=None, rust=False, nrust=1000, debug=False):
         Data for parameter estimation
     y : array_like, optional
         Points to evaluate CDF (default same as x)
-    rust : bool, optional
-        Whether to use RUST sampling (default False)
-    nrust : int, optional
-        Number of RUST samples (default 1000)
+    ru : bool, optional
+        Whether to use Ratio of Uniforms sampling (default False)
+    ru_nsamples : int, optional
+        Number of Ratio of Uniforms samples (default 1000)
     debug : bool, optional
         Whether to print debug messages (default False)
         
@@ -303,14 +305,14 @@ def cdf(x, y=None, rust=False, nrust=1000, debug=False):
     assert np.all(y >= 0), "y must be non-negative"
     
     dd = weibull_libs.dweibullsub(x=x, y=y)
-    ru_cdf = "rust not selected"
+    ru_cdf = "ru not selected"
     
-    if rust:
-        th = tsf(nrust, x)['theta_samples']
+    if ru:
+        th = tsf(ru_nsamples, x)['theta_samples']
         ru_cdf = np.zeros(len(y))
-        for ir in range(nrust):
+        for ir in range(ru_nsamples):
             ru_cdf += scipy.stats.weibull_min.cdf(y, c=th[ir, 0], scale=th[ir, 1])
-        ru_cdf = ru_cdf / nrust
+        ru_cdf = ru_cdf / ru_nsamples
     
     op = {
         'ml_params': dd['ml_params'],

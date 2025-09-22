@@ -1,18 +1,18 @@
 import numpy as np
 from scipy.stats import genextreme
 from scipy.optimize import minimize
+from rusampling import Ru
 
 import utils as cp_utils
 import genextreme_p1_libs
 import genextreme_p12_libs
 import genextreme_p12_derivs
 import evaluate_dmgs_equation as cp_dmgs
-from ru import Ru
 
 
 def ppf(x, t1, t2, t01=np.nan, t02=np.nan, n01=np.nan, n02=np.nan, p=np.arange(0.1, 1.0, 0.1),
                 ics=np.array([0, 0, 0, 0, 0]), fdalpha=0.01, minxi=-1, maxxi=1, means=False, waicscores=False,
-                extramodels=False, pdf=False, dmgs=True, rust=False, nrust=100000, predictordata=True,
+                extramodels=False, pdf=False, integrate_asymptotically=True, integrate_numerically_npoints=100000, predictordata=True,
                 centering=True, debug=False):
     """
     Generalized Extreme Value Distribution with Two Predictors, Predictions based on a Calibrating Prior

@@ -2,18 +2,21 @@ import numpy as np
 import scipy.stats as stats
 import scipy.optimize as optimize
 from scipy.stats import genpareto
+from rusampling import Ru
 
 import utils as cp_utils
 import evaluate_dmgs_equation as cp_dmgs
 import genpareto_derivs as cp_gpd_c
 import genpareto_libs as cp_gpd_b
-from ru import Ru
 import reltest_libs
 
 
+
 def ppf(x, p=None, kloc=0, ics=None, fdalpha=0.01, customprior=0,
-               minxi=-1, maxxi=2.0, means=False, waicscores=False, extramodels=False,
-               pdf=False, dmgs=True, rust=False, nrust=100000, debug=False):
+            minxi=-1, maxxi=2.0, means=False, waicscores=False, extramodels=False,
+            pdf=False, 
+            dmgs=True, ru=False, ru_nsamples=100000,
+            debug=False):
     """
     Passed data from the Generalized Pareto Distribution with known location parameter, returns quantiles and other results.
     
@@ -233,11 +236,11 @@ def ppf(x, p=None, kloc=0, ics=None, fdalpha=0.01, customprior=0,
         waic1 = waic['waic1']
         waic2 = waic['waic2']
         
-        # 21 rust
-        ru_quantiles = "rust not selected"
-        if rust:
-            rustsim = rvs(nrust, x, kloc=kloc, rust=True, mlcp=False)
-            ru_quantiles = cp_utils.makeq(rustsim['ru_deviates'], p)
+        # 21 ru
+        ru_quantiles = "ru not selected"
+        if ru:
+            rusim = rvs(ru_nsamples, x, kloc=kloc, ru=True, mlcp=False)
+            ru_quantiles = cp_utils.makeq(rusim['ru_deviates'], p)
     
     else:
         rh_flat_quantiles = ml_quantiles
@@ -275,7 +278,7 @@ def ppf(x, p=None, kloc=0, ics=None, fdalpha=0.01, customprior=0,
 
 
 def rvs(n, x, kloc=0, ics=None, minxi=-1, maxxi=2.0,
-               extramodels=False, rust=False, mlcp=True, debug=False):
+               extramodels=False, ru=False, mlcp=True, debug=False):
     """
     Passed data from the Generalized Pareto Distribution, generate random samples from the GPD with calibrating prior.
 
@@ -312,8 +315,8 @@ def rvs(n, x, kloc=0, ics=None, minxi=-1, maxxi=2.0,
     
     ml_params = "mlcp not selected"
     ml_deviates = "mlcp not selected"
-    ru_deviates = "rust not selected"
-    cp_deviates = "rust not selected"
+    ru_deviates = "ru not selected"
+    cp_deviates = "ru not selected"
     
     if mlcp:
         q = ppf(x, np.random.uniform(0, 1, n), kloc=kloc, ics=ics, extramodels=extramodels)
@@ -322,7 +325,7 @@ def rvs(n, x, kloc=0, ics=None, minxi=-1, maxxi=2.0,
         ru_deviates = q['ru_quantiles']
         cp_deviates = q['cp_quantiles']
     
-    if rust:
+    if ru:
         th = tsf(n, x)['theta_samples']
         ru_deviates = np.zeros(n)
         for i in range(n):
@@ -342,7 +345,7 @@ def rvs(n, x, kloc=0, ics=None, minxi=-1, maxxi=2.0,
 
 def pdf(x, y=None, kloc=0, ics=np.array([0, 0]),
                minxi=-1, maxxi=2.0,
-               rust=False, nrust=1000):
+               ru=False, ru_nsamples=1000):
     """
     Passed data from the Generalized Pareto Distribution, compute the density function for the GPD with calibrating prior.
 
@@ -393,15 +396,15 @@ def pdf(x, y=None, kloc=0, ics=np.array([0, 0]),
     
     dd = cp_gpd_b.dgpdsub(x=x, y=y, ics=ics, kloc=kloc,
                         minxi=minxi, maxxi=maxxi)
-    ru_pdf = "rust not selected"
+    ru_pdf = "ru not selected"
     
-    if rust and not revert2ml:
-        th = tsf(nrust, x)['theta_samples']
+    if ru and not revert2ml:
+        th = tsf(ru_nsamples, x)['theta_samples']
         ru_pdf = np.zeros(len(y))
-        for ir in range(nrust):
+        for ir in range(ru_nsamples):
             c = -th[ir, 1]  # Convert xi to scipy parameterization
             ru_pdf = ru_pdf + stats.genpareto.pdf(y, c, loc=kloc, scale=th[ir, 0])
-        ru_pdf = ru_pdf / nrust
+        ru_pdf = ru_pdf / ru_nsamples
     else:
         ru_pdf = dd['ml_pdf']
     
@@ -418,7 +421,7 @@ def pdf(x, y=None, kloc=0, ics=np.array([0, 0]),
 
 def cdf(x, y=None, kloc=0, ics = np.array([0, 0]), customprior=0,
                minxi=-1, maxxi=2.0, extramodels=False,
-               rust=False, nrust=1000, debug=False):
+               ru=False, ru_nsamples=1000, debug=False):
     """
     Passed data from the Generalized Pareto Distribution, compute the cumulative distribution function for the GPD with calibrating prior.
 
@@ -469,15 +472,15 @@ def cdf(x, y=None, kloc=0, ics = np.array([0, 0]), customprior=0,
     
     dd = cp_gpd_b.dgpdsub(x=x, y=y, ics=ics, kloc=kloc,
                         minxi=minxi, maxxi=maxxi)
-    ru_cdf = "rust not selected"
+    ru_cdf = "ru not selected"
     
-    if rust and not revert2ml:
-        th = tsf(nrust, x)['theta_samples']
+    if ru and not revert2ml:
+        th = tsf(ru_nsamples, x)['theta_samples']
         ru_cdf = np.zeros(len(y))
-        for ir in range(nrust):
+        for ir in range(ru_nsamples):
             c = -th[ir, 1]  # Convert xi to scipy parameterization
             ru_cdf = ru_cdf + stats.genpareto.cdf(y, c, loc=kloc, scale=th[ir, 0])
-        ru_cdf = ru_cdf / nrust
+        ru_cdf = ru_cdf / ru_nsamples
     else:
         ru_cdf = dd['ml_cdf']
     

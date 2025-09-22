@@ -1,17 +1,19 @@
 import numpy as np
 import scipy.stats as stats
 import scipy.optimize as optimize
+from rusampling import Ru
 
 import utils as cp_utils
 import evaluate_dmgs_equation as cp_dmgs
 import gamma_libs
 import gamma_derivs
-from ru import Ru
 import reltest_libs
 
 
 def ppf(x, p=None, fd1=0.01, fd2=0.01, means=False, waicscores=False, 
-              logscores=False, dmgs=True, rust=False, nrust=100000, prior="type 1", 
+              logscores=False, 
+              dmgs=True, ru=False, ru_nsamples=100000,
+              prior="type 1", 
               debug=False, aderivs=True):
     """
     Gamma Distribution Quantile Predictions Based on a Calibrating Prior
@@ -34,10 +36,10 @@ def ppf(x, p=None, fd1=0.01, fd2=0.01, means=False, waicscores=False,
         Whether to calculate log scores (default False)
     dmgs : bool
         Whether to use DMGS integration (default True)
-    rust : bool
-        Whether to use RUST (default False)
-    nrust : int
-        Number of RUST samples (default 100000)
+    ru : bool
+        Whether to use Ratio of Uniforms sampling method to integrate (default False)
+    ru_nsamples : int
+        Number of Ratio of Uniforms samples (default 100000)
     prior : str
         Prior type ("type 1" or "type 2", default "type 1")
     debug : bool
@@ -176,11 +178,11 @@ def ppf(x, p=None, fd1=0.01, fd2=0.01, means=False, waicscores=False,
         ml_oos_logscore = logscores_result['ml_oos_logscore']
         cp_oos_logscore = logscores_result['cp_oos_logscore']
         
-        # 15 rust
-        ru_quantiles = "rust not selected"
-        if rust:
-            rustsim = rvs(nrust, x, rust=True, mlcp=False)
-            ru_quantiles = cp_utils.makeq(rustsim['ru_deviates'], p)
+        # 15 ru
+        ru_quantiles = "ru not selected"
+        if ru:
+            rusim = rvs(ru_nsamples, x, ru=True, mlcp=False)
+            ru_quantiles = cp_utils.makeq(rusim['ru_deviates'], p)
             
     # end of if dmgs
     
@@ -207,7 +209,7 @@ def ppf(x, p=None, fd1=0.01, fd2=0.01, means=False, waicscores=False,
     }
 
 
-def rvs(n, x, fd1=0.01, fd2=0.01, rust=False, mlcp=True, debug=False, aderivs=True):
+def rvs(n, x, fd1=0.01, fd2=0.01, ru=False, mlcp=True, debug=False, aderivs=True):
     """
     Random number generation for Gamma Distribution with Calibrating Prior
     
@@ -221,8 +223,8 @@ def rvs(n, x, fd1=0.01, fd2=0.01, rust=False, mlcp=True, debug=False, aderivs=Tr
         Step size for v1 finite differences (default 0.01)
     fd2 : float
         Step size for v2 finite differences (default 0.01)
-    rust : bool
-        Whether to use RUST sampling (default False)
+    ru : bool
+        Whether to use Ratio of Uniforms sampling (default False)
     mlcp : bool
         Whether to use ML/CP sampling (default True)
     debug : bool
@@ -245,7 +247,7 @@ def rvs(n, x, fd1=0.01, fd2=0.01, rust=False, mlcp=True, debug=False, aderivs=Tr
     ml_params = "mlcp not selected"
     ml_deviates = "mlcp not selected"
     cp_deviates = "mlcp not selected"
-    ru_deviates = "rust not selected"
+    ru_deviates = "ru not selected"
     
     if mlcp:
         q = ppf(x, np.random.uniform(0, 1, n), fd1=fd1, fd2=fd2, aderivs=aderivs)
@@ -253,7 +255,7 @@ def rvs(n, x, fd1=0.01, fd2=0.01, rust=False, mlcp=True, debug=False, aderivs=Tr
         ml_deviates = q['ml_quantiles']
         cp_deviates = q['cp_quantiles']
     
-    if rust:
+    if ru:
         th = tsf(n, x)['theta_samples']
         ru_deviates = np.zeros(n)
         for i in range(n):
@@ -269,7 +271,7 @@ def rvs(n, x, fd1=0.01, fd2=0.01, rust=False, mlcp=True, debug=False, aderivs=Tr
     return op
 
 
-def pdf(x, y=None, fd1=0.01, fd2=0.01, rust=False, nrust=1000, debug=False, aderivs=True):
+def pdf(x, y=None, fd1=0.01, fd2=0.01, ru=False, ru_nsamples=1000, debug=False, aderivs=True):
     """
     Density function for Gamma Distribution with Calibrating Prior
     
@@ -283,10 +285,10 @@ def pdf(x, y=None, fd1=0.01, fd2=0.01, rust=False, nrust=1000, debug=False, ader
         Step size for v1 finite differences (default 0.01)
     fd2 : float
         Step size for v2 finite differences (default 0.01)
-    rust : bool
-        Whether to use RUST sampling (default False)
-    nrust : int
-        Number of RUST samples (default 1000)
+    ru : bool
+        Whether to use Ratio of Uniforms sampling (default False)
+    ru_nsamples : int
+        Number of Ratio of Uniforms samples (default 1000)
     debug : bool
         Debug flag (default False)
     aderivs : bool
@@ -312,14 +314,14 @@ def pdf(x, y=None, fd1=0.01, fd2=0.01, rust=False, nrust=1000, debug=False, ader
     assert np.all(y >= 0), "y must be >= 0"
     
     dd = gamma_libs.dgammasub(x=x, y=y, fd1=fd1, fd2=fd2, aderivs=aderivs)
-    ru_pdf = "rust not selected"
+    ru_pdf = "ru not selected"
     
-    if rust:
-        th = tsf(nrust, x)['theta_samples']
+    if ru:
+        th = tsf(ru_nsamples, x)['theta_samples']
         ru_pdf = np.zeros(len(y))
-        for ir in range(nrust):
+        for ir in range(ru_nsamples):
             ru_pdf = ru_pdf + stats.gamma.pdf(y, a=th[ir,0], scale=th[ir,1])
-        ru_pdf = ru_pdf / nrust
+        ru_pdf = ru_pdf / ru_nsamples
     
     op = {
         'ml_params': dd['ml_params'],
@@ -330,7 +332,7 @@ def pdf(x, y=None, fd1=0.01, fd2=0.01, rust=False, nrust=1000, debug=False, ader
     }
     return op
 
-def cdf(x, y=None, fd1=0.01, fd2=0.01, rust=False, nrust=1000, debug=False, aderivs=True):
+def cdf(x, y=None, fd1=0.01, fd2=0.01, ru=False, ru_nsamples=1000, debug=False, aderivs=True):
     """
     CDF function for Gamma Distribution with Calibrating Prior
     
@@ -344,10 +346,10 @@ def cdf(x, y=None, fd1=0.01, fd2=0.01, rust=False, nrust=1000, debug=False, ader
         Step size for v1 finite differences (default 0.01)
     fd2 : float
         Step size for v2 finite differences (default 0.01)
-    rust : bool
-        Whether to use RUST sampling (default False)
-    nrust : int
-        Number of RUST samples (default 1000)
+    ru : bool
+        Whether to use Ratio of Uniforms sampling (default False)
+    ru_nsamples : int
+        Number of Ratio of Uniforms samples (default 1000)
     debug : bool
         Debug flag (default False)
     aderivs : bool
@@ -373,14 +375,14 @@ def cdf(x, y=None, fd1=0.01, fd2=0.01, rust=False, nrust=1000, debug=False, ader
     assert np.all(y >= 0), "y must be >= 0"
     
     dd = gamma_libs.dgammasub(x=x, y=y, fd1=fd1, fd2=fd2, aderivs=aderivs)
-    ru_cdf = "rust not selected"
+    ru_cdf = "ru not selected"
     
-    if rust:
-        th = tsf(nrust, x)['theta_samples']
+    if ru:
+        th = tsf(ru_nsamples, x)['theta_samples']
         ru_cdf = np.zeros(len(y))
-        for ir in range(nrust):
+        for ir in range(ru_nsamples):
             ru_cdf = ru_cdf + stats.gamma.cdf(y, a=th[ir,0], scale=th[ir,1])
-        ru_cdf = ru_cdf / nrust
+        ru_cdf = ru_cdf / ru_nsamples
     
     op = {
         'ml_params': dd['ml_params'],

@@ -2,25 +2,20 @@ import numpy as np
 from scipy import stats
 from scipy.optimize import minimize
 from scipy.stats import genextreme
+from rusampling import Ru
 
 import evaluate_dmgs_equation as cp_dmgs
 import utils as cp_utils
 import genextreme_libs as cp_gev_b
 import genextreme_derivs as cp_gev_c
-from ru import Ru
 import reltest_libs
 
 
-def ppf(x, p = np.arange(0.1, 1.0, 0.1),
-           ics =  [0, 0, 0],
-           fdalpha = 0.01,
-           means = False,
-           waicscores = False,
-           extramodels = False,
-           pdf = False,
-           customprior: float = 0,
-           dmgs = True,
-           debug = False):
+def ppf(x, p = np.arange(0.1, 1.0, 0.1), ics=[0, 0, 0], fdalpha = 0.01,
+        means = False, waicscores = False, extramodels = False, pdf = False,
+        customprior: float = 0,
+        dmgs=True, ru=False, ru_nsamples=100000,
+        debug = False):
     """
     Passed data from the Generalized Extreme Value Distribution, returns quantiles and other results based on a Calibrating Prior.
     The calibrating prior we use is given by π(μ,σ,ξ) ∝ 1/σ as given in Jewson et al. (2025).
@@ -57,10 +52,10 @@ def ppf(x, p = np.arange(0.1, 1.0, 0.1),
     """
     
     # 1 intro
-    # optional parameters removed until rust, pwm are implemented
-    nrust = 1000
+    # optional parameters removed until ru, pwm are implemented
+    ru_nsamples = 1000
     pwm = False
-    rust = False
+    ru = False
 
     x = cp_utils.to_array(x)
     p = cp_utils.to_array(p)
@@ -212,11 +207,11 @@ def ppf(x, p = np.arange(0.1, 1.0, 0.1),
         waic1 = waic['waic1']
         waic2 = waic['waic2']
         
-        # 19 rust
-        ru_quantiles = "rust not selected"
-        if rust:
-            rustsim = rvs(nrust, x, rust=True, mlcp=False)
-            ru_quantiles = cp_gev_b.makeq(rustsim['ru_deviates'], p)
+        # 19 ru
+        ru_quantiles = "ru not selected"
+        if ru:
+            rusim = rvs(ru_nsamples, x, ru=True, mlcp=False)
+            ru_quantiles = cp_gev_b.makeq(rusim['ru_deviates'], p)
         
         # end of if(dmgs)
     else:
@@ -277,8 +272,8 @@ def rvs(n, x, ics  = [0, 0, 0], extramodels = False, mlcp = True):
         Dictionary containing ML parameters, ML deviates, CP deviates, RU deviates, and method info.
     """
     
-    # optional parameter removed until rust is implemented
-    rust = False
+    # optional parameter removed until ru is implemented
+    ru = False
 
     x = cp_utils.to_array(x)
     
@@ -289,7 +284,7 @@ def rvs(n, x, ics  = [0, 0, 0], extramodels = False, mlcp = True):
     ml_params = "mlcp not selected"
     ml_deviates = "mlcp not selected"
     cp_deviates = "mlcp not selected"
-    ru_deviates = "rust not selected"
+    ru_deviates = "ru not selected"
     
     if mlcp:
         q = ppf(x, np.random.uniform(0, 1, n), ics=ics, extramodels=extramodels)
@@ -298,7 +293,7 @@ def rvs(n, x, ics  = [0, 0, 0], extramodels = False, mlcp = True):
         ru_deviates = q['ru_quantiles']
         cp_deviates = q['cp_quantiles']
     
-    if rust:
+    if ru:
         th = tsf(n, x)['theta_samples']
         ru_deviates = np.zeros(n)
         for i in range(n):
@@ -336,9 +331,9 @@ def pdf(x, y = None, ics = [0, 0, 0]):
         Dictionary containing ML parameters, ML PDF, RU PDF, and method info.
     """
 
-    # optional parameters removed until rust is implemented
-    rust = False
-    nrust = 1000
+    # optional parameters removed until ru is implemented
+    ru = False
+    ru_nsamples = 1000
     
     x = cp_utils.to_array(x)
     if y is None:
@@ -362,14 +357,14 @@ def pdf(x, y = None, ics = [0, 0, 0]):
         revert2ml = False
     
     dd = cp_gev_b.dgevsub(x=x, y=y, ics=ics)
-    ru_pdf = "rust not selected"
+    ru_pdf = "ru not selected"
     
-    if rust and not revert2ml:
-        th = tsf(nrust, x)['theta_samples']
+    if ru and not revert2ml:
+        th = tsf(ru_nsamples, x)['theta_samples']
         ru_pdf = np.zeros(len(y))
-        for ir in range(nrust):
+        for ir in range(ru_nsamples):
             ru_pdf = ru_pdf + stats.genextreme.pdf(y, -th[ir, 2],loc=th[ir, 0], scale=th[ir, 1])
-        ru_pdf = ru_pdf / nrust
+        ru_pdf = ru_pdf / ru_nsamples
     else:
         ru_pdf = dd['ml_pdf']
     
@@ -408,9 +403,9 @@ def cdf(x, y = None,
         Dictionary containing ML parameters, ML CDF, RU CDF, and method info.
     """
 
-    # optional parameters removed until rust is implemented
-    rust = False
-    nrust = 1000
+    # optional parameters removed until ru is implemented
+    ru = False
+    ru_nsamples = 1000
     
     x = cp_utils.to_array(x)
     if y is None:
@@ -434,14 +429,14 @@ def cdf(x, y = None,
     
     ml_params = [v1hat, v2hat, v3hat]
     dd = cp_gev_b.dgevsub(x=x, y=y, ics=ics)
-    ru_cdf = "rust not selected"
+    ru_cdf = "ru not selected"
     
-    if rust and not revert2ml:
-        th = tsf(nrust, x)['theta_samples']
+    if ru and not revert2ml:
+        th = tsf(ru_nsamples, x)['theta_samples']
         ru_cdf = np.zeros(len(y))
-        for ir in range(nrust):
+        for ir in range(ru_nsamples):
             ru_cdf = ru_cdf + stats.genextreme.cdf(y, -th[ir, 2], loc=th[ir, 0], scale=th[ir, 1])
-        ru_cdf = ru_cdf / nrust
+        ru_cdf = ru_cdf / ru_nsamples
     else:
         ru_cdf = dd['ml_cdf']
     

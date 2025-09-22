@@ -2,17 +2,19 @@ import numpy as np
 import scipy.stats
 import scipy.optimize
 from scipy.stats import gumbel_r
+from rusampling import Ru
 
 import utils as cp_utils
 import evaluate_dmgs_equation as cp_dmgs
 import gumbel_derivs
 import gumbel_libs
-from ru import Ru
 import reltest_libs
 
 
-def ppf(x, p=np.arange(0.1, 1.0, 0.1), means=False, waicscores=False, logscores=False, 
-               dmgs=True, rust=False, nrust=100000, debug=False):
+def ppf(x, p=np.arange(0.1, 1.0, 0.1), 
+        means=False, waicscores=False, logscores=False,
+        dmgs=True, ru=False, ru_nsamples=100000,
+        debug=False):
     """
     Gumbel Distribution Predictions Based on a Calibrating Prior.
 
@@ -30,10 +32,10 @@ def ppf(x, p=np.arange(0.1, 1.0, 0.1), means=False, waicscores=False, logscores=
         Whether to compute log scores (default: False).
     dmgs : bool, optional
         Whether to use DMGS analytic corrections (default: True).
-    rust : bool, optional
-        Whether to use the "rust" simulation method (default: False).
-    nrust : int, optional
-        Number of simulations for "rust" (default: 100000).
+    ru : bool, optional
+        Whether to use the Ratio of Uniforms simulation method (default: False).
+    ru_nsamples : int, optional
+        Number of simulations for Ratio of Uniforms (default: 100000).
     debug : bool, optional
         If True, print debug information (default: False).
 
@@ -142,11 +144,11 @@ def ppf(x, p=np.arange(0.1, 1.0, 0.1), means=False, waicscores=False, logscores=
         ml_oos_logscore = logscores_result['ml_oos_logscore']
         rh_oos_logscore = logscores_result['rh_oos_logscore']
         
-        # 14 rust
-        ru_quantiles = "rust not selected"
-        if rust:
-            rustsim = rvs(nrust, x, rust=True, mlcp=False)
-            ru_quantiles = gumbel_libs.makeq(rustsim['ru_deviates'], p)
+        # 14 ru
+        ru_quantiles = "ru not selected"
+        if ru:
+            rusim = rvs(ru_nsamples, x, ru=True, mlcp=False)
+            ru_quantiles = gumbel_libs.makeq(rusim['ru_deviates'], p)
     
     # return
     return {
@@ -166,7 +168,7 @@ def ppf(x, p=np.arange(0.1, 1.0, 0.1), means=False, waicscores=False, logscores=
         'cp_method': cp_utils.rhp_dmgs_cpmethod()
     }
 
-def rvs(n, x, rust=False, mlcp=True, debug=False):
+def rvs(n, x, ru=False, mlcp=True, debug=False):
     """
     Random number generation for Gumbel calibrating prior.
 
@@ -176,8 +178,8 @@ def rvs(n, x, rust=False, mlcp=True, debug=False):
         Number of random variates to generate.
     x : array_like
         Observed data, must be finite and not NaN.
-    rust : bool, optional
-        Whether to use the "rust" simulation method (default: False).
+    ru : bool, optional
+        Whether to use the Ratio of Uniforms simulation method (default: False).
     mlcp : bool, optional
         Whether to use ML and calibrating prior (default: True).
     debug : bool, optional
@@ -186,7 +188,7 @@ def rvs(n, x, rust=False, mlcp=True, debug=False):
     Returns
     -------
     dict
-        Dictionary containing ML, calibrating prior, and rust deviates, parameters, and method information.
+        Dictionary containing ML, calibrating prior, and ru deviates, parameters, and method information.
     """
     x = cp_utils.to_array(x)
     assert np.all(np.isfinite(x)) and not np.any(np.isnan(x)), "x must be finite and not NA"
@@ -194,7 +196,7 @@ def rvs(n, x, rust=False, mlcp=True, debug=False):
     ml_params = "mlcp not selected"
     ml_deviates = "mlcp not selected"
     cp_deviates = "mlcp not selected"
-    ru_deviates = "rust not selected"
+    ru_deviates = "ru not selected"
     
     if mlcp:
         q = ppf(x, np.random.uniform(0, 1, n))
@@ -202,7 +204,7 @@ def rvs(n, x, rust=False, mlcp=True, debug=False):
         ml_deviates = q['ml_quantiles']
         cp_deviates = q['cp_quantiles']
     
-    if rust:
+    if ru:
         th = tsf(n, x)['theta_samples']
         ru_deviates = np.zeros(n)
         for i in range(n):
@@ -218,7 +220,7 @@ def rvs(n, x, rust=False, mlcp=True, debug=False):
     
     return op
 
-def pdf(x, y=None, rust=False, nrust=1000, debug=False):
+def pdf(x, y=None, ru=False, ru_nsamples=1000, debug=False):
     """
     Density function for Gumbel calibrating prior.
 
@@ -228,17 +230,17 @@ def pdf(x, y=None, rust=False, nrust=1000, debug=False):
         Observed data, must be finite and not NaN.
     y : array_like, optional
         Points at which to evaluate the density (default: x).
-    rust : bool, optional
-        Whether to use the "rust" simulation method (default: False).
-    nrust : int, optional
-        Number of simulations for "rust" (default: 1000).
+    ru : bool, optional
+        Whether to use the Ratio of Uniforms simulation method (default: False).
+    ru_nsamples : int, optional
+        Number of simulations for Ratio of Uniforms (default: 1000).
     debug : bool, optional
         If True, print debug information (default: False).
 
     Returns
     -------
     dict
-        Dictionary containing ML, calibrating prior, and rust densities, parameters, and method information.
+        Dictionary containing ML, calibrating prior, and ru densities, parameters, and method information.
     """
     x = cp_utils.to_array(x)
     if y is None:
@@ -250,14 +252,14 @@ def pdf(x, y=None, rust=False, nrust=1000, debug=False):
     assert np.all(np.isfinite(y)) and not np.any(np.isnan(y)), "y must be finite and not NA"
     
     dd = gumbel_libs.dgumbelsub(x=x, y=y)
-    ru_pdf = "rust not selected"
+    ru_pdf = "ru not selected"
     
-    if rust:
-        th = tsf(nrust, x)['theta_samples']
+    if ru:
+        th = tsf(ru_nsamples, x)['theta_samples']
         ru_pdf = np.zeros(len(y))
-        for ir in range(nrust):
+        for ir in range(ru_nsamples):
             ru_pdf += scipy.stats.gumbel_r.pdf(y, loc=th[ir, 0], scale=th[ir, 1])
-        ru_pdf = ru_pdf / nrust
+        ru_pdf = ru_pdf / ru_nsamples
     
     op = {
         'ml_params': dd['ml_params'],
@@ -269,7 +271,7 @@ def pdf(x, y=None, rust=False, nrust=1000, debug=False):
     
     return op
 
-def cdf(x, y=None, rust=False, nrust=1000, debug=False):
+def cdf(x, y=None, ru=False, ru_nsamples=1000, debug=False):
     """
     Cumulative distribution function for Gumbel calibrating prior.
 
@@ -279,17 +281,17 @@ def cdf(x, y=None, rust=False, nrust=1000, debug=False):
         Observed data, must be finite and not NaN.
     y : array_like, optional
         Points at which to evaluate the CDF (default: x).
-    rust : bool, optional
-        Whether to use the "rust" simulation method (default: False).
-    nrust : int, optional
-        Number of simulations for "rust" (default: 1000).
+    ru : bool, optional
+        Whether to use the Ratio of Uniforms simulation method (default: False).
+    ru_nsamples : int, optional
+        Number of simulations for Ratio of Uniforms (default: 1000).
     debug : bool, optional
         If True, print debug information (default: False).
 
     Returns
     -------
     dict
-        Dictionary containing ML, calibrating prior, and rust CDFs, parameters, and method information.
+        Dictionary containing ML, calibrating prior, and ru CDFs, parameters, and method information.
     """
     x = cp_utils.to_array(x)
     if y is None:
@@ -301,14 +303,14 @@ def cdf(x, y=None, rust=False, nrust=1000, debug=False):
     assert np.all(np.isfinite(y)) and not np.any(np.isnan(y)), "y must be finite and not NA"
     
     dd = gumbel_libs.dgumbelsub(x=x, y=y)
-    ru_cdf = "rust not selected"
+    ru_cdf = "ru not selected"
     
-    if rust:
-        th = tsf(nrust, x)['theta_samples']
+    if ru:
+        th = tsf(ru_nsamples, x)['theta_samples']
         ru_cdf = np.zeros(len(y))
-        for ir in range(nrust):
+        for ir in range(ru_nsamples):
             ru_cdf += scipy.stats.gumbel_r.cdf(y, loc=th[ir, 0], scale=th[ir, 1])
-        ru_cdf = ru_cdf / nrust
+        ru_cdf = ru_cdf / ru_nsamples
     
     op = {
         'ml_params': dd['ml_params'],

@@ -2,18 +2,19 @@ import numpy as np
 from scipy.optimize import minimize
 from scipy import stats
 import warnings
+from rusampling import Ru
 
 import utils as cp_utils
 import evaluate_dmgs_equation as cp_dmgs
 import genextreme_p1_libs as cp_gev_p1_b
 import genextreme_p1_derivs as cp_gev_p1_c
-from ru import Ru
 
 
 def ppf(x, t, t0=None, n0=None, p=np.arange(0.1, 1.0, 0.1), ics=np.array([0,0,0,0]),
-               fdalpha=0.01, minxi=-1, maxxi=1, means=False, waicscores=False, extramodels=False,
-               pdf=False, dmgs=True, rust=False, nrust=100000, predictordata=True,
-               centering=True, debug=False):
+        fdalpha=0.01, minxi=-1, maxxi=1, means=False, waicscores=False, extramodels=False, pdf=False, 
+        dmgs=True, ru=False, ru_nsamples=100000,
+        predictordata=True,
+        centering=True, debug=False):
     """Generalized Extreme Value Distribution with a Predictor, Predictions Based on a Calibrating Prior.
 
     Parameters
@@ -46,10 +47,10 @@ def ppf(x, t, t0=None, n0=None, p=np.arange(0.1, 1.0, 0.1), ics=np.array([0,0,0,
         Whether to compute PDFs (default is False).
     dmgs : bool, optional
         Whether to use the DMGS method (default is True).
-    rust : bool, optional
-        Whether to use the rust method (default is False).
-    nrust : int, optional
-        Number of rust simulations (default is 100000).
+    ru : bool, optional
+        Whether to use the Ratio of Uniforms method (default is False).
+    ru_nsamples : int, optional
+        Number of Ratio of Uniforms simulations (default is 100000).
     predictordata : bool, optional
         Whether to return predictor data (default is True).
     centering : bool, optional
@@ -235,11 +236,11 @@ def ppf(x, t, t0=None, n0=None, p=np.arange(0.1, 1.0, 0.1), ics=np.array([0,0,0,
         waic1 = waic['waic1']
         waic2 = waic['waic2']
 
-        # 20 rust
-        ru_quantiles = "rust not selected"
-        if rust:
-            rustsim = rvs(nrust, x, t=t, t0=t0, rust=True, mlcp=False)
-            ru_quantiles = cp_utils.makeq(rustsim['ru_deviates'], p)
+        # 20 ru
+        ru_quantiles = "ru not selected"
+        if ru:
+            rusim = rvs(ru_nsamples, x, t=t, t0=t0, ru=True, mlcp=False)
+            ru_quantiles = cp_utils.makeq(rusim['ru_deviates'], p)
     else:
         rh_flat_quantiles = ml_quantiles
         ru_quantiles = ml_quantiles
@@ -274,7 +275,7 @@ def ppf(x, t, t0=None, n0=None, p=np.arange(0.1, 1.0, 0.1), ics=np.array([0,0,0,
     }
 
 def rvs(n, x, t, t0=None, n0=None, ics=np.array([0,0,0,0]),
-               minxi=-1, maxxi=1, extramodels=False, rust=False, mlcp=True, debug=False):
+               minxi=-1, maxxi=1, extramodels=False, ru=False, mlcp=True, debug=False):
     """
     Random generation for GEV distribution with predictor and calibrating prior.
 
@@ -298,8 +299,8 @@ def rvs(n, x, t, t0=None, n0=None, ics=np.array([0,0,0,0]),
         Maximum value for the shape parameter xi (default is 1).
     extramodels : bool, optional
         Whether to compute extra models (default is False).
-    rust : bool, optional
-        Whether to use the rust method (default is False).
+    ru : bool, optional
+        Whether to use the Ratio of Uniforms method (default is False).
     mlcp : bool, optional
         Whether to use ML and CP deviates (default is True).
     debug : bool, optional
@@ -325,8 +326,8 @@ def rvs(n, x, t, t0=None, n0=None, ics=np.array([0,0,0,0]),
 
     ml_params = "mlcp not selected"
     ml_deviates = "mlcp not selected"
-    ru_deviates = "rust not selected"
-    cp_deviates = "rust not selected"
+    ru_deviates = "ru not selected"
+    cp_deviates = "ru not selected"
 
     if mlcp:
         q = ppf(x, t=t, t0=t0, n0=None, p=np.random.uniform(0, 1, n), ics=ics, extramodels=extramodels)
@@ -335,7 +336,7 @@ def rvs(n, x, t, t0=None, n0=None, ics=np.array([0,0,0,0]),
         ru_deviates = q['ru_quantiles']
         cp_deviates = q['cp_quantiles']
 
-    if rust:
+    if ru:
         th = tsf(n, x, t)['theta_samples']
         ru_deviates = np.zeros(n)
         for i in range(n):
@@ -358,7 +359,7 @@ def rvs(n, x, t, t0=None, n0=None, ics=np.array([0,0,0,0]),
 
 def pdf(x, t, t0=None, n0=None, y=None, ics=np.array([0,0,0,0]),
                minxi=-1, maxxi=1, extramodels=False,
-               rust=False, nrust=1000, centering=True, debug=False):
+               ru=False, ru_nsamples=1000, centering=True, debug=False):
     """
     Density function for GEV distribution with predictor and calibrating prior
     Parameters
@@ -381,10 +382,10 @@ def pdf(x, t, t0=None, n0=None, y=None, ics=np.array([0,0,0,0]),
         Maximum value for the shape parameter xi (default is 1).
     extramodels : bool, optional
         Whether to compute extra models (default is False).
-    rust : bool, optional
-        Whether to use the rust method (default is False).
-    nrust : int, optional
-        Number of rust simulations (default is 1000).
+    ru : bool, optional
+        Whether to use the Ratio of Uniforms method (default is False).
+    ru_nsamples : int, optional
+        Number of Ratio of Uniforms simulations (default is 1000).
     centering : bool, optional
         Whether to center the predictor variable (default is True).
     debug : bool, optional
@@ -432,16 +433,16 @@ def pdf(x, t, t0=None, n0=None, y=None, ics=np.array([0,0,0,0]),
     ml_params = np.array([v1hat, v2hat, v3hat, v4hat])
     
     dd = cp_gev_p1_b.dgev_p1sub(x=x, t=t, y=y, t0=t0, ics=ics, minxi=minxi, maxxi=maxxi, extramodels=extramodels)
-    ru_pdf = "rust not selected"
+    ru_pdf = "ru not selected"
     ml_params = dd['ml_params']
 
-    if rust and not revert2ml:
-        th = tsf(nrust, x, t)['theta_samples']
+    if ru and not revert2ml:
+        th = tsf(ru_nsamples, x, t)['theta_samples']
         ru_pdf = np.zeros(len(y))
-        for ir in range(nrust):
+        for ir in range(ru_nsamples):
             mu = th[ir,0] + t0 * th[ir,1]
             ru_pdf = ru_pdf + stats.genextreme.pdf(y, c=-th[ir,3], loc=mu, scale=th[ir,2])
-        ru_pdf = ru_pdf / nrust
+        ru_pdf = ru_pdf / ru_nsamples
     else:
         ru_pdf = dd['ml_pdf']
 
@@ -461,7 +462,7 @@ def pdf(x, t, t0=None, n0=None, y=None, ics=np.array([0,0,0,0]),
 
 def cdf(x, t, t0=None, n0=None, y=None, ics=np.array([0,0,0,0]),
                minxi=-1, maxxi=1, extramodels=False,
-               rust=False, nrust=1000, centering=True, debug=False):
+               ru=False, ru_nsamples=1000, centering=True, debug=False):
     """
     Distribution function for GEV distribution with predictor and calibrating prior.
 
@@ -485,10 +486,10 @@ def cdf(x, t, t0=None, n0=None, y=None, ics=np.array([0,0,0,0]),
         Maximum value for the shape parameter xi (default is 1).
     extramodels : bool, optional
         Whether to compute extra models (default is False).
-    rust : bool, optional
-        Whether to use the rust method (default is False).
-    nrust : int, optional
-        Number of rust simulations (default is 1000).
+    ru : bool, optional
+        Whether to use the Ratio of Uniforms method (default is False).
+    ru_nsamples : int, optional
+        Number of Ratio of Uniforms simulations (default is 1000).
     centering : bool, optional
         Whether to center the predictor variable (default is True).
     debug : bool, optional
@@ -536,16 +537,16 @@ def cdf(x, t, t0=None, n0=None, y=None, ics=np.array([0,0,0,0]),
     ml_params = np.array([v1hat, v2hat, v3hat, v4hat])
     
     dd = cp_gev_p1_b.dgev_p1sub(x=x, t=t, y=y, t0=t0, ics=ics, minxi=minxi, maxxi=maxxi, extramodels=extramodels)
-    ru_cdf = "rust not selected"
+    ru_cdf = "ru not selected"
     ml_params = dd['ml_params']
 
-    if rust and not revert2ml:
-        th = tsf(nrust, x, t)['theta_samples']
+    if ru and not revert2ml:
+        th = tsf(ru_nsamples, x, t)['theta_samples']
         ru_cdf = np.zeros(len(y))
-        for ir in range(nrust):
+        for ir in range(ru_nsamples):
             mu = th[ir,0] + t0 * th[ir,1]
             ru_cdf = ru_cdf + stats.genextreme.cdf(y, c=-th[ir,3], loc=mu, scale=th[ir,2])
-        ru_cdf = ru_cdf / nrust
+        ru_cdf = ru_cdf / ru_nsamples
     else:
         ru_pdf = dd['ml_pdf']
 

@@ -1,15 +1,17 @@
 import numpy as np
 import scipy.stats as stats
 from scipy.optimize import minimize
+from rusampling import Ru
 
 import norm_libs
 import utils as cp_utils
-from ru import Ru
 import reltest_libs
 
 
-def ppf(x, p=np.arange(0.1, 1.0, 0.1), means=False, waicscores=False, 
-             logscores=False, rust=False, nrust=100000, unbiasedv=False, debug=False):
+def ppf(x, p=np.arange(0.1, 1.0, 0.1), 
+        means=False, waicscores=False, logscores=False, 
+        ru=False, ru_nsamples=100000,
+        unbiasedv=False):
     """
     Normal Distribution Predictions Based on a Calibrating Prior
     
@@ -25,10 +27,6 @@ def ppf(x, p=np.arange(0.1, 1.0, 0.1), means=False, waicscores=False,
         Whether to calculate WAIC scores
     logscores : bool, default False
         Whether to calculate log scores
-    rust : bool, default False
-        Whether to use RUST method
-    nrust : int, default 100000
-        Number of RUST samples
     unbiasedv : bool, default False
         Whether to use unbiased variance
     debug : bool, default False
@@ -106,11 +104,11 @@ def ppf(x, p=np.arange(0.1, 1.0, 0.1), means=False, waicscores=False,
     ml_oos_logscore = logscores_result['ml_oos_logscore']
     rh_oos_logscore = logscores_result['rh_oos_logscore']
     
-    # 9 rust
-    ru_quantiles = "rust not selected"
-    if rust:
-        rustsim = rvs(nrust, x, rust=True, mlcp=False)
-        ru_quantiles = cp_utils.makeq(rustsim['ru_deviates'], p)
+    # 9 ru
+    ru_quantiles = "ru not selected"
+    if ru:
+        rusim = rvs(ru_nsamples, x, ru=True, mlcp=False)
+        ru_quantiles = cp_utils.makeq(rusim['ru_deviates'], p)
     
     return {
         'ml_params': ml_params,
@@ -135,7 +133,7 @@ def ppf(x, p=np.arange(0.1, 1.0, 0.1), means=False, waicscores=False,
         'cp_method': cp_utils.analytic_cpmethod()
     }
 
-def rvs(n, x, rust=False, mlcp=True, debug=False):
+def rvs(n, x, ru=False, mlcp=True, debug=False):
     """
     Random number generation for normal distribution with calibrating prior
     
@@ -145,8 +143,8 @@ def rvs(n, x, rust=False, mlcp=True, debug=False):
         Number of samples
     x : array-like
         Training data
-    rust : bool, default False
-        Whether to use RUST method
+    ru : bool, default False
+        Whether to use Ratio of Uniforms method
     mlcp : bool, default True
         Whether to use ML/CP method
     debug : bool, default False
@@ -164,7 +162,7 @@ def rvs(n, x, rust=False, mlcp=True, debug=False):
     ml_params = "mlcp not selected"
     ml_deviates = "mlcp not selected"
     cp_deviates = "mlcp not selected"
-    ru_deviates = "rust not selected"
+    ru_deviates = "ru not selected"
     
     if mlcp:
         q = ppf(x, np.random.uniform(size=n))
@@ -172,7 +170,7 @@ def rvs(n, x, rust=False, mlcp=True, debug=False):
         ml_deviates = q['ml_quantiles']
         cp_deviates = q['cp_quantiles']
     
-    if rust:
+    if ru:
         th = tsf(n, x)['theta_samples']
         ru_deviates = np.zeros(n)
         for i in range(n):
@@ -187,7 +185,7 @@ def rvs(n, x, rust=False, mlcp=True, debug=False):
     }
     return op
 
-def pdf(x, y=None, rust=False, nrust=1000, debug=False):
+def pdf(x, y=None, ru=False, ru_nsamples=1000, debug=False):
     """
     Density function for normal distribution with calibrating prior
     
@@ -197,10 +195,10 @@ def pdf(x, y=None, rust=False, nrust=1000, debug=False):
         Training data
     y : array-like, optional
         Test points (default: same as x)
-    rust : bool, default False
-        Whether to use RUST method
-    nrust : int, default 1000
-        Number of RUST samples
+    ru : bool, default False
+        Whether to use Ratio of Uniforms method
+    ru_nsamples : int, default 1000
+        Number of Ratio of Uniforms samples
     debug : bool, default False
         Debug flag
         
@@ -218,13 +216,13 @@ def pdf(x, y=None, rust=False, nrust=1000, debug=False):
     assert np.all(np.isfinite(y)) and not np.any(np.isnan(y))
     
     dd = norm_libs.dnormsub(x=x, y=y)
-    ru_pdf = "rust not selected"
-    if rust:
-        th = tsf(nrust, x)['theta_samples']
+    ru_pdf = "ru not selected"
+    if ru:
+        th = tsf(ru_nsamples, x)['theta_samples']
         ru_pdf = np.zeros(len(y))
-        for ir in range(nrust):
+        for ir in range(ru_nsamples):
             ru_pdf = ru_pdf + stats.norm.pdf(y, loc=th[ir, 0], scale=th[ir, 1])
-        ru_pdf = ru_pdf / nrust
+        ru_pdf = ru_pdf / ru_nsamples
     
     op = {
         'ml_params': dd['ml_params'],
@@ -235,7 +233,7 @@ def pdf(x, y=None, rust=False, nrust=1000, debug=False):
     }
     return op
 
-def cdf(x, y=None, rust=False, nrust=1000, debug=False):
+def cdf(x, y=None, ru=False, ru_nsamples=1000, debug=False):
     """
     Cumulative distribution function for normal distribution with calibrating prior
     
@@ -245,10 +243,10 @@ def cdf(x, y=None, rust=False, nrust=1000, debug=False):
         Training data
     y : array-like, optional
         Test points (default: same as x)
-    rust : bool, default False
-        Whether to use RUST method
-    nrust : int, default 1000
-        Number of RUST samples
+    ru : bool, default False
+        Whether to use Ratio of Uniforms method
+    ru_nsamples : int, default 1000
+        Number of Ratio of Uniforms samples
     debug : bool, default False
         Debug flag
         
@@ -266,13 +264,13 @@ def cdf(x, y=None, rust=False, nrust=1000, debug=False):
     assert np.all(np.isfinite(y)) and not np.any(np.isnan(y))
     
     dd = norm_libs.dnormsub(x=x, y=y)
-    ru_cdf = "rust not selected"
-    if rust:
-        th = tsf(nrust, x)['theta_samples']
+    ru_cdf = "ru not selected"
+    if ru:
+        th = tsf(ru_nsamples, x)['theta_samples']
         ru_cdf = np.zeros(len(y))
-        for ir in range(nrust):
+        for ir in range(ru_nsamples):
             ru_cdf = ru_cdf + stats.norm.cdf(y, loc=th[ir, 0], scale=th[ir, 1])
-        ru_cdf = ru_cdf / nrust
+        ru_cdf = ru_cdf / ru_nsamples
     
     op = {
         'ml_params': dd['ml_params'],
