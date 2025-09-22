@@ -15,7 +15,7 @@ classifiers = [
 ]
 license = 'MIT'
 license-files = ["LICEN[CS]E*"]
-dependencies = ['numpy', 'scipy', 'scikit-learn', 'matplotlib']
+dependencies = ['numpy', 'scipy', 'scikit-learn', 'matplotlib', 'rusampling']
 
 [project.urls]
 Homepage = "https://github.com/lynnejewson/fitdistcp"
